@@ -1,0 +1,69 @@
+---
+description: Naudoti, kai iš esamo PRD dokumento reikia sukurti užduočių sąrašą įgyvendinimui
+alwaysApply: false
+trigger: always_on
+---
+# Taisyklė: užduočių sąrašo kūrimas iš PRD
+
+Pradinio lygio versija iš seminaro "Vibe Coding pradedantiesiems". Pilnas Ponas Obuolys Workflow paketas su Definition of Done vartais ir orkestravimo nuorodomis: https://ponasobuolys.lt/irankiai/ponas-obuolys-workflow
+
+## Tikslas
+
+Iš PRD sukurti aiškų, žingsnis po žingsnio užduočių sąrašą, pagal kurį programa bus kuriama po vieną mažą dalį.
+
+## Rezultatas
+
+- **Formatas:** Markdown
+- **Vieta:** `docs/`
+- **Failo pavadinimas:** `tasks-[prd-failo-pavadinimas].md` (pvz., iš `prd-rezervacijos.md` gaunasi `tasks-prd-rezervacijos.md`)
+
+## Eiga
+
+1. **Perskaityk PRD**, kurį nurodė vartotojas (`@docs/prd-....md`).
+2. **1 etapas: pagrindinės užduotys.** Sukurk 4–7 pagrindines užduotis, be smulkesnių žingsnių. Parodyk jas vartotojui ir parašyk: "Sukūriau pagrindines užduotis. Rašyk Go, ir suskaidysiu jas į smulkesnius žingsnius."
+3. **Palauk patvirtinimo.** Kol vartotojas neparašė "Go", toliau neik.
+4. **2 etapas: smulkūs žingsniai.** Kiekvieną pagrindinę užduotį suskaidyk į 2–6 konkrečius žingsnius. Kiekvienas žingsnis turi būti toks, kad jį būtų galima padaryti ir patikrinti naršyklėje per 10–20 minučių.
+5. **Nurodyk failus**, kurie greičiausiai bus kuriami ar keičiami, su vieno sakinio paaiškinimu.
+6. **Išsaugok** sąrašą `docs/` aplanke.
+
+## Tvarka, kurios laikytis
+
+Užduotis rikiuok taip, kad kiekvieną žingsnį būtų galima pamatyti veikiantį:
+
+1. Ekranas su laikinais duomenimis (be duomenų bazės).
+2. Supabase lentelės ir prijungimas.
+3. Prisijungimas ir RLS, jei reikia.
+4. Papildomos funkcijos (paieška, filtrai, laiškai).
+5. Paleidimas internete.
+
+## Formatas
+
+```markdown
+# Užduotys: [projekto pavadinimas]
+
+PRD: docs/prd-[pavadinimas].md
+
+## Failai
+
+- `src/pages/reservations.tsx` – rezervacijų sąrašo ir formos ekranas
+- `src/lib/supabase.ts` – Supabase klientas
+- `docs/projektas.md` – projekto aprašas
+
+## Užduotys
+
+- [ ] 1.0 Rezervacijos ekranas su laikinais duomenimis
+  - [ ] 1.1 Sukurti formą: paslauga, data, laikas, vardas, telefonas
+  - [ ] 1.2 Rodyti rezervacijų sąrašą po forma
+  - [ ] 1.3 Patikrinti naršyklėje: pridėta rezervacija atsiranda sąraše
+- [ ] 2.0 Supabase prijungimas
+  - [ ] 2.1 Sukurti lentelę `reservations` (SQL vartotojas įklijuos į SQL Editor)
+  - [ ] 2.2 Įrašus saugoti ir skaityti iš Supabase
+  - [ ] 2.3 Patikrinti: įrašas matomas Supabase Table Editor
+```
+
+## Taisyklės
+
+- Kiekviena pagrindinė užduotis baigiasi žingsniu "Patikrinti naršyklėje: …". Be patikros užduotis nebaigta.
+- Užduočių aprašymai lietuviški, paprastais žodžiais.
+- Jei žingsnis priklauso nuo kito, pažymėk: `[po 2.2]`.
+- Testų rašymo žingsnių pradedantiesiems nepridėk, nebent vartotojas paprašys.

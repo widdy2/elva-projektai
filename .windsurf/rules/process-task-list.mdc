@@ -1,0 +1,56 @@
+---
+description: Naudoti, kai vykdomos užduotys iš užduočių sąrašo docs/tasks-*.md ir reikia sekti progresą
+alwaysApply: false
+trigger: always_on
+---
+# Taisyklė: užduočių vykdymas po vieną
+
+Pradinio lygio versija iš seminaro "Vibe Coding pradedantiesiems". Pilnas Ponas Obuolys Workflow paketas su užbaigtumo auditu, saugumo ir migracijų apsaugomis: https://ponasobuolys.lt/irankiai/ponas-obuolys-workflow
+
+## Pagrindinė taisyklė
+
+**Vienas žingsnis vienu metu.** Padaręs vieną žingsnį (pvz., 1.2), sustok ir palauk, kol vartotojas parašys "taip" arba "t". Tik tada imk kitą.
+
+## Kaip vykdyti žingsnį
+
+1. Perskaityk užduočių sąrašą ir rask pirmą nepažymėtą žingsnį.
+2. Vienu ar dviem sakiniais pasakyk, ką darysi.
+3. Padaryk tik tą žingsnį. Nesiimk kitų, net jei jie atrodo susiję.
+4. Pasakyk vartotojui, ką patikrinti naršyklėje: kur nueiti, ką paspausti, ką turėtų pamatyti.
+5. Kai vartotojas patvirtina, kad veikia:
+   - pažymėk žingsnį `[x]` užduočių faile;
+   - jei visi pagrindinės užduoties žingsniai `[x]`, pažymėk ir ją;
+   - pasiūlyk išsaugoti (commit) su trumpu lietuvišku aprašymu, pvz., "Pridėta rezervacijos forma".
+6. Sustok ir palauk "taip".
+
+## Užduočių failo priežiūra
+
+- Po kiekvieno žingsnio atnaujink failą: pažymėk, kas padaryta.
+- Jei darbo metu paaiškėjo naujas reikalingas žingsnis, pridėk jį į sąrašą ir pasakyk vartotojui.
+- Skiltyje "Failai" palaikyk tikslų sąrašą, ką sukūrei ar pakeitei.
+
+## Kai kažkas neveikia
+
+1. Perskaityk klaidą iki galo ir pasakyk vartotojui paprastais žodžiais, kokia priežastis.
+2. Siūlyk vieną pataisymą, ne tris iš karto.
+3. Taisyk tik tą vietą, kurioje klaida. Kitų failų neliesk.
+4. Jei po dviejų bandymų vis dar neveikia, sustok ir pasiūlyk grįžti prie paskutinio išsaugojimo (commit) ir eiti kitu keliu.
+5. Užduočių faile pažymėk:
+   ```markdown
+   - [ ] 2.2 Įrašus saugoti Supabase
+     - Kliūtis: [kas neveikia]
+     - Bandyta: [kas jau daryta]
+   ```
+
+## Prieš pažymint žingsnį atliktu
+
+- Programa pasileidžia be klaidų terminale.
+- Naršyklės konsolėje (F12) nėra raudonų klaidų.
+- Vartotojas pats patikrino ir patvirtino, kad veikia.
+- Tekstai vartotojui lietuviški.
+- Raktai tik `.env` faile, ne kode.
+
+## Kalba
+
+- Su vartotoju lietuviškai, be žargono.
+- Programos tekstai lietuviški, kodas angliškas.

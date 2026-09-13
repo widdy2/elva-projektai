@@ -1,0 +1,56 @@
+---
+description: Naudoti, kai reikia sukurti projekto arba naujos funkcijos reikalavimų dokumentą (PRD) iš trumpo aprašymo
+alwaysApply: false
+trigger: always_on
+---
+# Taisyklė: PRD (reikalavimų dokumento) kūrimas
+
+Pradinio lygio versija iš seminaro "Vibe Coding pradedantiesiems". Pilnas Ponas Obuolys Workflow paketas su rizikos vertinimu, auditais ir apsaugos agentais: https://ponasobuolys.lt/irankiai/ponas-obuolys-workflow
+
+## Tikslas
+
+Iš trumpo vartotojo aprašymo sukurti aiškų PRD dokumentą (Product Requirements Document), pagal kurį AI galėtų suplanuoti ir įgyvendinti projektą be spėliojimų.
+
+## Eiga
+
+1. **Gauk aprašymą.** Vartotojas keliais sakiniais pasako, ką nori sukurti.
+2. **Užduok klausimus.** Prieš rašydamas PRD PRIVALAI užduoti 3–6 klausimus. Klausk tik to, kas iš tikrųjų neaišku. Klausimus numeruok, kad vartotojas galėtų atsakyti trumpai (pvz., "1a, 2b").
+3. **Sukurk PRD** pagal struktūrą žemiau, remdamasis atsakymais.
+4. **Išsaugok** kaip `docs/prd-[projekto-pavadinimas].md`.
+
+## Klausimų pavyzdžiai
+
+Pritaikyk pagal projektą, neklausk visų iš eilės:
+
+- **Problema.** Kokią problemą sprendžia ši programa ir kam?
+- **Vartotojas.** Kas ja naudosis: tu pats, klientai, komanda?
+- **Pagrindiniai veiksmai.** Ką vartotojas turi galėti padaryti? (Pvz., pridėti įrašą, rezervuoti laiką, atsisiųsti ataskaitą.)
+- **Duomenys.** Kokią informaciją programa saugo? (Pvz., klientai, rezervacijos, prekės.)
+- **Prisijungimas.** Ar reikia registracijos ir prisijungimo, ar viskas vieša?
+- **Ribos.** Ko programa šioje versijoje tikrai NEDARO?
+- **Išvaizda.** Ar yra pavyzdys, spalvos, stilius, į kurį lygiuotis?
+
+## PRD struktūra
+
+1. **Apžvalga.** Dviem trimis sakiniais: kas tai ir kokią problemą sprendžia.
+2. **Tikslai.** Konkretūs, patikrinami. Pvz.: "Klientas rezervuoja laiką per mažiau nei minutę."
+3. **Vartotojo istorijos.** "Kaip [kas], noriu [ką], kad [kodėl]." 3–6 istorijos.
+4. **Funkciniai reikalavimai.** Numeruotas sąrašas: "Sistema leidžia…", "Vartotojas gali…". Kiekvienas punktas vienas veiksmas.
+5. **Ne šios versijos dalykai.** Ką sąmoningai atidedam vėlesniam laikui.
+6. **Duomenų modelis.** Lentelės ir jų laukai paprastais žodžiais.
+7. **Ekranai.** Kokius ekranus vartotojas matys ir kas kiekviename yra.
+8. **Techninės pastabos.** Technologijos (pagal `AGENTS.md`), integracijos (Supabase, Resend), apribojimai.
+9. **Kaip suprasim, kad pavyko.** 2–3 paprasti kriterijai.
+10. **Atviri klausimai.** Kas dar neaišku.
+
+## Kalba
+
+- PRD rašomas lietuviškai, paprastais žodžiais, be programuotojų žargono, kur galima be jo apsieiti.
+- Visi programos tekstai vartotojui bus lietuviški. Tai įrašyk į techninių pastabų skyrių.
+- Lentelių ir laukų pavadinimai kode angliški (pvz., `reservations`, `created_at`), bet PRD dokumente jie paaiškinami lietuviškai.
+
+## Svarbu
+
+1. Kodo NERAŠYK ir projekto neįgyvendink. Ši taisyklė tik dokumentui.
+2. Be klausimų PRD nekurk.
+3. Gavęs atsakymus, PRD patobulink ir parodyk vartotojui. Paklausk, ar viskas teisinga, prieš išsaugodamas.
