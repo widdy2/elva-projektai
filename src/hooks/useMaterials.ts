@@ -24,6 +24,7 @@ export interface WarehouseItem {
   unit: string
   quantity: number
   unit_price: number
+  note: string | null
   created_at: string
   updated_at: string
 }

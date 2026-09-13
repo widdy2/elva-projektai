@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useWarehouseItems, useCreateWarehouseItem, useUpdateWarehouseItem, useDeleteWarehouseItem } from '../hooks/useMaterials'
+import { useWarehouseItems, useCreateWarehouseItem, useUpdateWarehouseItem, useDeleteWarehouseItem, WarehouseItem } from '../hooks/useMaterials'
 import { useOrganization } from '../hooks/useOrganization'
-import { PdfImport, ParsedItem } from '../components/PdfImport'
+import { PdfImport, ParsedItem, ImportResult } from '../components/PdfImport'
 import { supabase } from '../lib/supabase'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -13,18 +13,57 @@ export function Warehouse() {
   const updateItem = useUpdateWarehouseItem()
   const deleteItem = useDeleteWarehouseItem()
 
-  const handlePdfImport = async (parsed: ParsedItem[]) => {
-    const { error } = await supabase
-      .from('warehouse_items')
-      .insert(parsed.map(p => ({
-        organization_id: organizationId,
-        name: p.name,
-        unit: p.unit,
-        quantity: p.quantity,
-        unit_price: p.unit_price,
-      })))
-    if (error) throw error
+  const handlePdfImport = async (parsed: ParsedItem[]): Promise<ImportResult> => {
+    const existing = items || []
+    const byKey = new Map(existing.map(i => [`${i.name.trim().toLowerCase()}|${i.unit.trim().toLowerCase()}`, i]))
+
+    const toInsert: object[] = []
+    const toUpdate: { id: string; quantity: number; unit_price: number; note: string | null }[] = []
+
+    for (const p of parsed) {
+      const key = `${p.name.trim().toLowerCase()}|${p.unit.trim().toLowerCase()}`
+      const found = byKey.get(key)
+      if (found) {
+        // Ta pati prekė — sumuojame kiekį, atnaujiname kainą, pastabą prijungiame jei nauja
+        const mergedNote = found.note
+          ? (p.note && !found.note.includes(p.note) ? `${found.note}; ${p.note}` : found.note)
+          : (p.note ?? null)
+        toUpdate.push({
+          id: found.id,
+          quantity: found.quantity + p.quantity,
+          unit_price: p.unit_price,
+          note: mergedNote,
+        })
+        // Atnaujiname map'ą, kad kelios eilutės toje pačioje sąskaitoje irgi susumuotų
+        byKey.set(key, { ...found, quantity: found.quantity + p.quantity, note: mergedNote })
+      } else {
+        const newItem = {
+          organization_id: organizationId,
+          name: p.name,
+          unit: p.unit,
+          quantity: p.quantity,
+          unit_price: p.unit_price,
+          note: p.note ?? null,
+        }
+        toInsert.push(newItem)
+        byKey.set(key, { ...newItem, id: '', created_at: '', updated_at: '' } as WarehouseItem)
+      }
+    }
+
+    if (toInsert.length > 0) {
+      const { error } = await supabase.from('warehouse_items').insert(toInsert)
+      if (error) throw error
+    }
+    for (const u of toUpdate) {
+      const { error } = await supabase
+        .from('warehouse_items')
+        .update({ quantity: u.quantity, unit_price: u.unit_price, note: u.note })
+        .eq('id', u.id)
+      if (error) throw error
+    }
+
     queryClient.invalidateQueries({ queryKey: ['warehouseItems'] })
+    return { inserted: toInsert.length, merged: toUpdate.length }
   }
 
   const [name, setName] = useState('')
@@ -41,6 +80,7 @@ export function Warehouse() {
       unit,
       quantity: parseFloat(quantity) || 0,
       unit_price: parseFloat(unitPrice) || 0,
+      note: null,
     })
 
     setName('')
@@ -121,13 +161,26 @@ export function Warehouse() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kiekis</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">€/vnt</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vertė</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pastaba</th>
               <th className="px-6 py-3"></th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {items?.map((item) => (
               <tr key={item.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.name}</td>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                  <input
+                    type="text"
+                    defaultValue={item.name}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim()
+                      if (val && val !== item.name) {
+                        updateItem.mutate({ id: item.id, name: val })
+                      }
+                    }}
+                    className="w-full px-1 py-0.5 border border-transparent hover:border-gray-300 rounded text-sm"
+                  />
+                </td>
                 <td className="px-6 py-4 text-sm text-gray-700">
                   <input
                     type="number"
@@ -161,6 +214,20 @@ export function Warehouse() {
                 </td>
                 <td className="px-6 py-4 text-sm font-medium text-gray-900">
                   €{(item.quantity * item.unit_price).toFixed(2)}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  <input
+                    type="text"
+                    defaultValue={item.note || ''}
+                    placeholder="—"
+                    onBlur={(e) => {
+                      const val = e.target.value.trim() || null
+                      if (val !== item.note) {
+                        updateItem.mutate({ id: item.id, note: val })
+                      }
+                    }}
+                    className="w-full px-1 py-0.5 border border-transparent hover:border-gray-300 rounded text-xs"
+                  />
                 </td>
                 <td className="px-6 py-4 text-right">
                   <button

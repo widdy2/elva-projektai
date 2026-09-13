@@ -9,10 +9,16 @@ export interface ParsedItem {
   quantity: number
   unit: string
   unit_price: number
+  note?: string | null
+}
+
+export interface ImportResult {
+  inserted: number
+  merged: number
 }
 
 interface PdfImportProps {
-  onImport: (items: ParsedItem[]) => Promise<void>
+  onImport: (items: ParsedItem[]) => Promise<ImportResult | void>
 }
 
 // Skaičiaus atpažinimas: "12,50" arba "12.50" arba "1 234,56"
@@ -20,6 +26,19 @@ function parseNumber(s: string): number | null {
   const cleaned = s.replace(/\s/g, '').replace(',', '.')
   const n = parseFloat(cleaned)
   return isNaN(n) ? null : n
+}
+
+// Iš PDF teksto ištraukia objekto pavadinimą (pvz. "Objektas: Vilniaus g. 1")
+function extractObjectName(text: string): string | null {
+  const lines = text.split('\n')
+  for (const line of lines) {
+    const m = line.match(/objekt\w*\s*(?:pavadinimas|adresas)?\s*[:\-\u2013]\s*(.+)/i)
+    if (m && m[1]) {
+      const val = m[1].trim()
+      if (val.length > 2 && val.length < 120) return val
+    }
+  }
+  return null
 }
 
 // Išskaido PDF tekstą į pozicijas
@@ -78,9 +97,8 @@ function parseItems(text: string): ParsedItem[] {
 export function PdfImport({ onImport }: PdfImportProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [parsing, setParsing] = useState(false)
-  const [items, setItems] = useState<ParsedItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [importing, setImporting] = useState(false)
+  const [result, setResult] = useState<{ count: number; merged: number; objectName: string | null } | null>(null)
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -88,7 +106,7 @@ export function PdfImport({ onImport }: PdfImportProps) {
 
     setParsing(true)
     setError(null)
-    setItems(null)
+    setResult(null)
 
     try {
       const buffer = await file.arrayBuffer()
@@ -125,41 +143,16 @@ export function PdfImport({ onImport }: PdfImportProps) {
       if (parsed.length === 0) {
         setError('Nepavyko atpažinti pozicijų iš PDF. Patikrinkite ar failas yra tekstinis (ne nuskanuotas).')
       } else {
-        setItems(parsed)
+        const objectName = extractObjectName(fullText)
+        const withNote = parsed.map(p => ({ ...p, note: objectName }))
+        const res = await onImport(withNote)
+        setResult({ count: withNote.length, merged: res?.merged ?? 0, objectName })
       }
     } catch (err) {
       setError(`Klaida skaitant PDF: ${(err as Error).message}`)
     } finally {
       setParsing(false)
       if (fileRef.current) fileRef.current.value = ''
-    }
-  }
-
-  const updateItem = (index: number, field: keyof ParsedItem, value: string) => {
-    if (!items) return
-    const updated = [...items]
-    if (field === 'name' || field === 'unit') {
-      updated[index] = { ...updated[index], [field]: value }
-    } else {
-      updated[index] = { ...updated[index], [field]: parseFloat(value) || 0 }
-    }
-    setItems(updated)
-  }
-
-  const removeItem = (index: number) => {
-    setItems(items?.filter((_, i) => i !== index) || null)
-  }
-
-  const handleConfirm = async () => {
-    if (!items || items.length === 0) return
-    setImporting(true)
-    try {
-      await onImport(items)
-      setItems(null)
-    } catch (err) {
-      setError(`Klaida importuojant: ${(err as Error).message}`)
-    } finally {
-      setImporting(false)
     }
   }
 
@@ -182,61 +175,11 @@ export function PdfImport({ onImport }: PdfImportProps) {
 
       {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
 
-      {items && (
-        <div className="mt-4 bg-white rounded-lg shadow-md p-4">
-          <h4 className="font-semibold text-gray-900 mb-3">
-            Atpažintos pozicijos ({items.length}) - patikrinkite ir patvirtinkite
-          </h4>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {items.map((item, i) => (
-              <div key={i} className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  value={item.name}
-                  onChange={(e) => updateItem(i, 'name', e.target.value)}
-                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(i, 'quantity', e.target.value)}
-                  className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                />
-                <input
-                  type="text"
-                  value={item.unit}
-                  onChange={(e) => updateItem(i, 'unit', e.target.value)}
-                  className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={item.unit_price}
-                  onChange={(e) => updateItem(i, 'unit_price', e.target.value)}
-                  className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                />
-                <button onClick={() => removeItem(i)} className="text-red-600 text-sm">×</button>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={handleConfirm}
-              disabled={importing || items.length === 0}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm disabled:opacity-50"
-            >
-              {importing ? 'Importuojama...' : `Importuoti ${items.length} pozicijas į sandėlį`}
-            </button>
-            <button
-              onClick={() => setItems(null)}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
-            >
-              Atšaukti
-            </button>
-          </div>
+      {result && (
+        <div className="mt-2 bg-green-50 border border-green-200 rounded-md p-3 text-sm text-green-800">
+          Importuota <strong>{result.count}</strong> pozicijų
+          {result.merged > 0 && <> ({result.merged} sujungtos su esamomis)</>}
+          {result.objectName && <> — objektas: <strong>{result.objectName}</strong></>}
         </div>
       )}
     </div>
