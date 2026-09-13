@@ -31,22 +31,25 @@ serve(async (req) => {
       throw new Error('Trūksta teksto')
     }
 
-    const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+    const apiKey = Deno.env.get('OPENAI_API_KEY')
     if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY nenustatytas Supabase secrets')
+      throw new Error('OPENAI_API_KEY nenustatytas Supabase secrets')
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${apiKey}`,
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-4o-mini',
         max_tokens: 2048,
-        system: `Tu esi statybos darbų asistentas Lietuvoje. Iš vartotojo teksto išskirk atliktus DARBUS ir sunaudotas MEDŽIAGAS kaip du atskirus sąrašus.
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: `Tu esi statybos darbų asistentas Lietuvoje. Iš vartotojo teksto išskirk atliktus DARBUS ir sunaudotas MEDŽIAGAS kaip du atskirus sąrašus.
 
 DARBAI (works) — tai atlikti darbai/paslaugos. Kiekvienam:
 - name: trumpas pavadinimas lietuviškai (pvz. "Sienų dažymas", "Laminato klojimas")
@@ -75,17 +78,19 @@ Orientacinės Lietuvos kainos darbams:
 
 Grąžink TIK JSON objektą, be jokio paaiškinimo ar markdown:
 {"works":[{"name":"...","unit":"m","quantity":10,"work_price":15,"material_price":0}],"materials":[{"name":"...","unit":"l","quantity":5,"unit_price":12}]}`,
-        messages: [{ role: 'user', content: text }],
+          },
+          { role: 'user', content: text },
+        ],
       }),
     })
 
     if (!response.ok) {
       const errBody = await response.text()
-      throw new Error(`Claude API klaida: ${response.status} ${errBody}`)
+      throw new Error(`OpenAI API klaida: ${response.status} ${errBody}`)
     }
 
     const result = await response.json()
-    const content = result.content?.[0]?.text || '{}'
+    const content = result.choices?.[0]?.message?.content || '{}'
 
     // Išvalome markdown jei Claude vis tiek pridėjo
     const cleaned = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
