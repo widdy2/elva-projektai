@@ -446,7 +446,15 @@ export function ProjectDetail() {
       const { data, error } = await supabase.functions.invoke('parse-works', {
         body: { text: aiText.trim() },
       })
-      if (error) throw error
+      if (error) {
+        // Edge function grąžino non-2xx — ištraukiame tikrą klaidą iš body
+        let msg = error.message
+        try {
+          const body = await (error as { context?: Response }).context?.json?.()
+          if (body?.error) msg = body.error
+        } catch { /* paliekame generinę */ }
+        throw new Error(msg)
+      }
       if (data?.error) throw new Error(data.error)
       setAiWorks(data.works || [])
       setAiMaterials(data.materials || [])
