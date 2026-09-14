@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { extractPdfText, parseItems, PdfLineItem } from '../lib/pdfParse'
+import { extractPdfText, parseItems, parseWorkActItems, PdfLineItem } from '../lib/pdfParse'
 
 interface WorkActPdfImportProps {
   onImport: (items: PdfLineItem[]) => Promise<void>
@@ -32,7 +32,11 @@ export function WorkActPdfImport({ onImport }: WorkActPdfImportProps) {
         return
       }
 
-      const parsed = parseItems(fullText)
+      let parsed = parseItems(fullText)
+      if (parsed.length === 0) {
+        // Aktas be kainų: "1 Pavadinimas 10 vnt."
+        parsed = parseWorkActItems(fullText)
+      }
       if (parsed.length === 0) {
         setError('Nepavyko atpažinti darbų eilučių. Atidarykite Console (F12) ir atsiųskite ištrauktą tekstą.')
       } else {

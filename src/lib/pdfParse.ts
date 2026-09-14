@@ -116,3 +116,28 @@ export function parseItems(text: string): PdfLineItem[] {
 
   return items
 }
+
+// Atliktų darbų aktas BE kainų: "1 Pavadinimas 10 vnt."
+// Formatas: eil.nr, pavadinimas, kiekis, m.v. — kaina = 0 (įvedama ranka)
+export function parseWorkActItems(text: string): PdfLineItem[] {
+  const items: PdfLineItem[] = []
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+
+  const re = /^\d+\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s+(vnt\.?|kompl\.?|m2|m²|m3|m³|kg|g|ml|l|m|val\.?|tk|pak\.?|rit\.?|gb|EA)\.?\s*$/i
+  const skip = /pastaba|užsakovas|rangovas|vykdytojas|parašas|vardas|aktas|objektas|data|eil\.|pavardė/i
+
+  for (const line of lines) {
+    const m = line.match(re)
+    if (!m) continue
+    const name = m[1].trim()
+    if (name.length < 2 || skip.test(name)) continue
+    items.push({
+      name,
+      quantity: parseNumber(m[2]) || 1,
+      unit: m[3].replace('.', ''),
+      unit_price: 0,
+    })
+  }
+
+  return items
+}
