@@ -18,7 +18,7 @@ export interface Invoice {
   notes: string | null
   created_at: string
   updated_at: string
-  clients?: { name: string } | null
+  clients?: { name: string; code: string | null; vat_code: string | null; address: string | null } | null
   projects?: { name: string; address: string } | null
 }
 
@@ -41,7 +41,7 @@ export function useInvoices() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('invoices')
-        .select('*, clients(name), projects(name, address)')
+        .select('*, clients(name, code, vat_code, address), projects(name, address)')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
 

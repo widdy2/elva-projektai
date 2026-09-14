@@ -9,6 +9,8 @@ export interface Client {
   email: string | null
   phone: string | null
   address: string | null
+  code: string | null
+  vat_code: string | null
   created_at: string
   updated_at: string
 }

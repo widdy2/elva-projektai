@@ -12,6 +12,8 @@ export interface Organization {
   email: string | null
   logo_url: string | null
   brand_color: string | null
+  bank_name: string | null
+  bank_account: string | null
 }
 
 const LOGO_BUCKET = 'org-logos'

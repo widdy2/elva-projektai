@@ -13,6 +13,8 @@ export function Settings() {
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [bankName, setBankName] = useState('')
+  const [bankAccount, setBankAccount] = useState('')
   const [brandColor, setBrandColor] = useState('#3b82f6')
   const [saved, setSaved] = useState(false)
 
@@ -24,6 +26,8 @@ export function Settings() {
       setAddress(org.address || '')
       setPhone(org.phone || '')
       setEmail(org.email || '')
+      setBankName(org.bank_name || '')
+      setBankAccount(org.bank_account || '')
       setBrandColor(org.brand_color || '#3b82f6')
     }
   }, [org])
@@ -38,6 +42,8 @@ export function Settings() {
         address: address || null,
         phone: phone || null,
         email: email || null,
+        bank_name: bankName || null,
+        bank_account: bankAccount || null,
         brand_color: brandColor,
       })
       setSaved(true)
@@ -135,6 +141,26 @@ export function Settings() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bankas</label>
+            <input
+              type="text"
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              placeholder="Pvz.: AB SEB bankas"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Banko sąskaita (IBAN)</label>
+            <input
+              type="text"
+              value={bankAccount}
+              onChange={(e) => setBankAccount(e.target.value)}
+              placeholder="Pvz.: LT00 0000 0000 0000 0000"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
             />
           </div>

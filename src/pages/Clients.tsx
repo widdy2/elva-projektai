@@ -17,11 +17,15 @@ export function Clients() {
   const [newEmail, setNewEmail] = useState('')
   const [newPhone, setNewPhone] = useState('')
   const [newAddress, setNewAddress] = useState('')
+  const [newCode, setNewCode] = useState('')
+  const [newVatCode, setNewVatCode] = useState('')
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editAddress, setEditAddress] = useState('')
+  const [editCode, setEditCode] = useState('')
+  const [editVatCode, setEditVatCode] = useState('')
 
   const clientProjects = projects?.filter(p => p.client_id === selectedClient?.id) || []
 
@@ -32,6 +36,8 @@ export function Clients() {
     setEditEmail(client.email || '')
     setEditPhone(client.phone || '')
     setEditAddress(client.address || '')
+    setEditCode(client.code || '')
+    setEditVatCode(client.vat_code || '')
   }
 
   const handleSave = async () => {
@@ -43,8 +49,10 @@ export function Clients() {
         email: editEmail.trim() || null,
         phone: editPhone.trim() || null,
         address: editAddress.trim() || null,
+        code: editCode.trim() || null,
+        vat_code: editVatCode.trim() || null,
       })
-      setSelectedClient({ ...selectedClient, name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim() || null, address: editAddress.trim() || null })
+      setSelectedClient({ ...selectedClient, name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim() || null, address: editAddress.trim() || null, code: editCode.trim() || null, vat_code: editVatCode.trim() || null })
       setIsEditing(false)
     } catch (err) {
       alert(`Klaida atnaujinant klientą: ${(err as Error).message}`)
@@ -59,12 +67,16 @@ export function Clients() {
         email: newEmail.trim() || null,
         phone: newPhone.trim() || null,
         address: newAddress.trim() || null,
+        code: newCode.trim() || null,
+        vat_code: newVatCode.trim() || null,
       })
       setIsCreating(false)
       setNewName('')
       setNewEmail('')
       setNewPhone('')
       setNewAddress('')
+      setNewCode('')
+      setNewVatCode('')
     } catch (err) {
       alert(`Klaida kuriant klientą: ${(err as Error).message}`)
     }
@@ -196,6 +208,24 @@ export function Clients() {
                     className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"
                   />
                 </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase">Įmonės kodas</label>
+                  <input
+                    type="text"
+                    value={newCode}
+                    onChange={(e) => setNewCode(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase">PVM mokėtojo kodas</label>
+                  <input
+                    type="text"
+                    value={newVatCode}
+                    onChange={(e) => setNewVatCode(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                  />
+                </div>
               </div>
 
               <div className="flex space-x-3">
@@ -247,6 +277,14 @@ export function Clients() {
                     <div>
                       <span className="text-xs text-gray-500 uppercase">Adresas</span>
                       <p className="text-sm text-gray-900">{selectedClient.address || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 uppercase">Įmonės kodas</span>
+                      <p className="text-sm text-gray-900">{selectedClient.code || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 uppercase">PVM mokėtojo kodas</span>
+                      <p className="text-sm text-gray-900">{selectedClient.vat_code || '-'}</p>
                     </div>
                     <div>
                       <span className="text-xs text-gray-500 uppercase">Sukurtas</span>
@@ -324,6 +362,24 @@ export function Clients() {
                         type="text"
                         value={editAddress}
                         onChange={(e) => setEditAddress(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Įmonės kodas</label>
+                      <input
+                        type="text"
+                        value={editCode}
+                        onChange={(e) => setEditCode(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">PVM mokėtojo kodas</label>
+                      <input
+                        type="text"
+                        value={editVatCode}
+                        onChange={(e) => setEditVatCode(e.target.value)}
                         className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"
                       />
                     </div>

@@ -27,6 +27,7 @@ interface ItemRow {
   quantity: string
   unit: string
   unit_price: string
+  item_type: 'work' | 'material'
 }
 
 export function Invoices() {
@@ -43,7 +44,7 @@ export function Invoices() {
   const [clientId, setClientId] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [notes, setNotes] = useState('')
-  const [items, setItems] = useState<ItemRow[]>([{ name: '', quantity: '1', unit: 'vnt', unit_price: '' }])
+  const [items, setItems] = useState<ItemRow[]>([{ name: '', quantity: '1', unit: 'vnt', unit_price: '', item_type: 'work' }])
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const handleProjectChange = (pid: string) => {
@@ -53,7 +54,7 @@ export function Invoices() {
   }
 
   const addItemRow = () => {
-    setItems([...items, { name: '', quantity: '1', unit: 'vnt', unit_price: '' }])
+    setItems([...items, { name: '', quantity: '1', unit: 'vnt', unit_price: '', item_type: 'work' }])
   }
 
   const updateItem = (index: number, field: keyof ItemRow, value: string) => {
@@ -96,6 +97,7 @@ export function Invoices() {
           unit: i.unit,
           unit_price: parseFloat(i.unit_price) || 0,
           total: (parseFloat(i.quantity) || 1) * (parseFloat(i.unit_price) || 0),
+          item_type: i.item_type,
         })),
       })
       setShowForm(false)
@@ -103,7 +105,7 @@ export function Invoices() {
       setClientId('')
       setDueDate('')
       setNotes('')
-      setItems([{ name: '', quantity: '1', unit: 'vnt', unit_price: '' }])
+      setItems([{ name: '', quantity: '1', unit: 'vnt', unit_price: '', item_type: 'work' }])
     } catch (err) {
       alert(`Klaida kuriant sąskaitą: ${(err as Error).message}`)
     }
@@ -119,43 +121,118 @@ export function Invoices() {
     const pageWidth = doc.internal.pageSize.getWidth()
     const startY = await addOrgHeader(doc, org)
 
-    doc.setFontSize(18)
-    doc.text('SASKAITA FAKTURA', pageWidth / 2, startY + 6, { align: 'center' })
-    doc.setFontSize(12)
-    doc.text(invoice.invoice_number, pageWidth / 2, startY + 14, { align: 'center' })
+    // Antraštė pagal ELVA pavyzdį
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('PVM Sąskaita faktūra', 14, startY + 4)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`Dok. Nr. ${invoice.invoice_number}`, 14, startY + 11)
+    doc.text(`Data: ${new Date(invoice.issue_date).toLocaleDateString('lt-LT')}`, 14, startY + 17)
+    if (invoice.due_date) {
+      doc.text(`Apmokėti iki: ${new Date(invoice.due_date).toLocaleDateString('lt-LT')}`, 14, startY + 23)
+    }
+
+    // Pardavėjas (kairė) / Užsakovas (dešinė)
+    const blockY = startY + (invoice.due_date ? 31 : 25)
+    const rightX = pageWidth / 2 + 6
 
     doc.setFontSize(10)
-    doc.text(`Klientas: ${invoice.clients?.name || '-'}`, 14, startY + 26)
-    doc.text(`Objektas: ${invoice.projects?.name || '-'}`, 14, startY + 32)
-    doc.text(`Adresas: ${invoice.projects?.address || '-'}`, 14, startY + 38)
-    doc.text(`Israsyta: ${invoice.issue_date}`, 14, startY + 44)
-    doc.text(`Apmoketi iki: ${invoice.due_date || '-'}`, 14, startY + 50)
+    doc.setFont('helvetica', 'bold')
+    doc.text(org?.name || '', 14, blockY)
+    doc.text('Užsakovas:', rightX, blockY)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
 
-    autoTable(doc, {
-      startY: startY + 58,
-      head: [['Pavadinimas', 'Kiekis', 'Vnt.', 'EUR/vnt', 'Suma EUR']],
-      body: (items || []).map(i => [
-        i.name,
-        i.quantity.toString(),
+    const sellerLines: string[] = []
+    if (org?.code) sellerLines.push(`Įmonės kodas: ${org.code}`)
+    if (org?.vat_code) sellerLines.push(`PVM mokėtojo kodas: ${org.vat_code}`)
+    if (org?.address) sellerLines.push(`Įm. adresas: ${org.address}`)
+    if (org?.bank_name) sellerLines.push(org.bank_name)
+    if (org?.bank_account) sellerLines.push(`A.s.: ${org.bank_account}`)
+    if (org?.phone) sellerLines.push(`Tel.: ${org.phone}`)
+    if (org?.email) sellerLines.push(org.email)
+
+    const client = invoice.clients
+    const buyerLines: string[] = []
+    if (client?.name) buyerLines.push(client.name)
+    if (client?.code) buyerLines.push(`Įmonės kodas: ${client.code}`)
+    if (client?.vat_code) buyerLines.push(`PVM mokėtojo kodas: ${client.vat_code}`)
+    if (client?.address) buyerLines.push(`Adresas: ${client.address}`)
+    if (invoice.projects?.name) buyerLines.push(`Objektas: ${invoice.projects.name}`)
+    if (invoice.projects?.address) buyerLines.push(`Objekto adresas: ${invoice.projects.address}`)
+
+    sellerLines.forEach((l, i) => doc.text(l, 14, blockY + 6 + i * 4.5))
+    buyerLines.forEach((l, i) => doc.text(l, rightX, blockY + 6 + i * 4.5))
+
+    const tableY = blockY + 10 + Math.max(sellerLines.length, buyerLines.length) * 4.5
+
+    // Pozicijos: Darbai ir Medžiagos atskiromis sekcijomis
+    const allItems = items || []
+    const isMaterial = (i: { item_type?: string; name: string }) =>
+      i.item_type === 'material' || /\(medžiaga\)/i.test(i.name)
+    const workItems = allItems.filter(i => !isMaterial(i))
+    const materialItems = allItems.filter(i => isMaterial(i))
+
+    const body: (string | { content: string; colSpan: number; styles: object })[][] = []
+    let nr = 0
+    const pushRow = (i: { name: string; quantity: number; unit: string; unit_price: number; total: number }) => {
+      nr++
+      body.push([
+        nr.toString(),
+        i.name.replace(/\s*\(medžiaga\)\s*/i, ''),
         i.unit,
+        i.quantity.toString(),
         i.unit_price.toFixed(2),
         i.total.toFixed(2),
-      ]),
+      ])
+    }
+
+    if (workItems.length > 0) {
+      body.push([{ content: 'Darbai', colSpan: 6, styles: { fontStyle: 'bold', fillColor: [230, 230, 230] } }])
+      workItems.forEach(pushRow)
+    }
+    if (materialItems.length > 0) {
+      body.push([{ content: 'Medžiagos', colSpan: 6, styles: { fontStyle: 'bold', fillColor: [230, 230, 230] } }])
+      materialItems.forEach(pushRow)
+    }
+
+    autoTable(doc, {
+      startY: tableY,
+      head: [['Nr.', 'Pavadinimas', 'vnt./m.', 'Kiekis', 'Kaina', 'Suma']],
+      body,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [66, 66, 66] },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: 16, halign: 'right' },
+        4: { cellWidth: 22, halign: 'right' },
+        5: { cellWidth: 22, halign: 'right' },
+      },
     })
 
-    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
+    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
     doc.setFontSize(10)
-    doc.text(`Tarpine suma: EUR ${invoice.subtotal.toFixed(2)}`, pageWidth - 14, finalY, { align: 'right' })
-    doc.text(`PVM ${invoice.vat_rate}%: EUR ${invoice.vat_amount.toFixed(2)}`, pageWidth - 14, finalY + 6, { align: 'right' })
-    doc.setFontSize(12)
-    doc.text(`IS VISO: EUR ${invoice.total.toFixed(2)}`, pageWidth - 14, finalY + 14, { align: 'right' })
+    doc.text(`Suma ${invoice.subtotal.toFixed(2)}`, pageWidth - 14, finalY, { align: 'right' })
+    doc.text(`PVM ${invoice.vat_rate}% ${invoice.vat_amount.toFixed(2)}`, pageWidth - 14, finalY + 5, { align: 'right' })
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text(`Suma apmokėjimui ${invoice.total.toFixed(2)}`, pageWidth - 14, finalY + 12, { align: 'right' })
+    doc.setFont('helvetica', 'normal')
 
     if (invoice.notes) {
       doc.setFontSize(9)
-      doc.text(`Pastabos: ${invoice.notes}`, 14, finalY + 24)
+      doc.text(`Pastabos: ${invoice.notes}`, 14, finalY + 20)
     }
+
+    // Parašų eilutės
+    const sigY = finalY + (invoice.notes ? 30 : 24)
+    doc.setFontSize(10)
+    doc.text('Sąskaitą išrašė:', 14, sigY)
+    doc.line(48, sigY, 100, sigY)
+    doc.text('Užsakovas:', rightX, sigY)
+    doc.line(rightX + 26, sigY, pageWidth - 14, sigY)
 
     doc.save(`${invoice.invoice_number}.pdf`)
   }
@@ -255,6 +332,14 @@ export function Invoices() {
                   placeholder="€/vnt"
                   className="w-24 px-3 py-2 border border-gray-300 rounded-md text-sm"
                 />
+                <select
+                  value={item.item_type}
+                  onChange={(e) => updateItem(i, 'item_type', e.target.value)}
+                  className="w-24 px-2 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="work">Darbas</option>
+                  <option value="material">Medžiaga</option>
+                </select>
                 <span className="w-20 py-2 text-sm text-gray-700 text-right">
                   €{((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0)).toFixed(2)}
                 </span>

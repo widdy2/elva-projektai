@@ -140,13 +140,15 @@ export function ProjectDetail() {
         unit: w.unit || 'vnt',
         unit_price: w.work_price || 0,
         total: (w.quantity || 1) * (w.work_price || 0),
+        item_type: 'work' as const,
       })),
       ...usedMaterials.map(m => ({
-        name: `${m.name} (medžiaga)`,
+        name: m.name,
         quantity: m.used_quantity,
         unit: m.unit,
         unit_price: m.unit_price,
         total: m.used_quantity * m.unit_price,
+        item_type: 'material' as const,
       })),
     ]
 
