@@ -48,9 +48,14 @@ export function PdfImport({ onImport }: PdfImportProps) {
       console.log(fullText)
       console.log('=== End of PDF text ===')
 
+      if (fullText.trim().length < 10) {
+        setError('PDF faile nėra teksto sluoksnio — tai nuskanuotas dokumentas. Reikalingas tekstinis PDF.')
+        return
+      }
+
       const parsed = parseItems(fullText)
       if (parsed.length === 0) {
-        setError('Nepavyko atpažinti pozicijų iš PDF. Patikrinkite ar failas yra tekstinis (ne nuskanuotas).')
+        setError('Nepavyko atpažinti pozicijų eilučių. Atidarykite Console (F12) ir atsiųskite ištrauktą tekstą.')
       } else {
         const objectName = extractObjectName(fullText)
         const withNote = parsed.map(p => ({ ...p, note: objectName }))

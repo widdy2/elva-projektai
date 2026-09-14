@@ -55,21 +55,37 @@ export function parseItems(text: string): PdfLineItem[] {
   const items: PdfLineItem[] = []
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
 
-  // Eilutė baigiasi: VNT KIEKIS KAINA SUMA (du skaičiai su kableliu gale)
-  const itemRegex = /^(.*?)\s+(EA|vnt\.?|m2|m²|m3|m³|kg|g|ml|l|m|kompl\.?|pak\.?|rit\.?|val\.?|vnt)\s+(\d+(?:[.,]\d+)?)\s+([\d\s]*[.,]\d{2})\s+([\d\s]*[.,]\d{2})\s*$/i
+  const UNIT = '(EA|vnt\.?|m2|m²|m3|m³|kg|g|ml|l|m|kompl\.?|pak\.?|rit\.?|val\.?|vnt|tk|gb|m\.?vnt)'
+  // Variantas A: PAVADINIMAS VNT KIEKIS KAINA SUMA (du skaičiai gale)
+  const itemRegex = new RegExp(`^(.*?)\\s+${UNIT}\\s+(\\d+(?:[.,]\\d+)?)\\s+([\\d\\s]*[.,]\\d{2})\\s+([\\d\\s]*[.,]\\d{2})\\s*$`, 'i')
+  // Variantas B: PAVADINIMAS VNT KIEKIS SUMA (vienas skaičius gale — vieneto kaina = suma/kiekis)
+  const itemRegexShort = new RegExp(`^(.*?)\\s+${UNIT}\\s+(\\d+(?:[.,]\\d+)?)\\s+([\\d\\s]*[.,]\\d{2})\\s*$`, 'i')
 
   // Eilutės kurias reikia praleisti (antraštės, sumos, parašai)
   const skipPatterns = /viso|pvm\b|suma\b|sąskaita|pardav|pirk|pristatymo|adresas|telefonas|kodas|pavadinimas|kiekis|kaina|parašas|užsakymas|žodžiais|p\.\d|gavau|išrašė|registre|duomenys|skolinimo|dokumentas|ofisas|objekto|užsakė|nr\.|data|vnt\.|prek|aktas|priėm|perdav/i
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    const match = line.match(itemRegex)
-    if (!match) continue
+    let match = line.match(itemRegex)
+    let unitPrice: number
+    let quantity: number
+    let name: string
+    let unit: string
 
-    let name = match[1].trim()
-    const unit = match[2].replace('.', '')
-    const quantity = parseNumber(match[3]) || 1
-    const unitPrice = parseNumber(match[4]) || 0
+    if (match) {
+      name = match[1].trim()
+      unit = match[2].replace('.', '')
+      quantity = parseNumber(match[3]) || 1
+      unitPrice = parseNumber(match[4]) || 0
+    } else {
+      match = line.match(itemRegexShort)
+      if (!match) continue
+      name = match[1].trim()
+      unit = match[2].replace('.', '')
+      quantity = parseNumber(match[3]) || 1
+      const total = parseNumber(match[4]) || 0
+      unitPrice = quantity > 0 ? total / quantity : total
+    }
 
     // Pašalinti "N. kodas prekės_kodas" iš pavadinimo pradžios
     name = name.replace(/^\d+\.\s+\d+\s+\S+\s+/, '').trim()
@@ -87,7 +103,7 @@ export function parseItems(text: string): PdfLineItem[] {
     let j = i + 1
     while (j < lines.length) {
       const next = lines[j]
-      if (next.match(itemRegex)) break
+      if (next.match(itemRegex) || next.match(itemRegexShort)) break
       if (/^\d+\.\s+\d+/.test(next)) break
       if (skipPatterns.test(next)) break
       name += ' ' + next

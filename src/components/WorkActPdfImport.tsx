@@ -27,9 +27,14 @@ export function WorkActPdfImport({ onImport }: WorkActPdfImportProps) {
       console.log(fullText)
       console.log('=== End of PDF text ===')
 
+      if (fullText.trim().length < 10) {
+        setError('PDF faile nėra teksto sluoksnio — tai nuskanuotas dokumentas. Reikalingas tekstinis PDF.')
+        return
+      }
+
       const parsed = parseItems(fullText)
       if (parsed.length === 0) {
-        setError('Nepavyko atpažinti darbų iš PDF. Patikrinkite ar failas yra tekstinis (ne nuskanuotas).')
+        setError('Nepavyko atpažinti darbų eilučių. Atidarykite Console (F12) ir atsiųskite ištrauktą tekstą.')
       } else {
         await onImport(parsed)
         setImported(parsed.length)
