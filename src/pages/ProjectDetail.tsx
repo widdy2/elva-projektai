@@ -11,6 +11,8 @@ import { useCreateInvoice } from '../hooks/useInvoices'
 import { useProfiles } from '../hooks/useProfiles'
 import { useOrganizationDetails } from '../hooks/useOrganizationDetails'
 import { addOrgHeader } from '../lib/pdfHeader'
+import { WorkActPdfImport } from '../components/WorkActPdfImport'
+import { PdfLineItem } from '../lib/pdfParse'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -325,6 +327,25 @@ export function ProjectDetail() {
     setNewWorkName('')
   }
 
+  // Darbų akto PDF importas — visos pozicijos tampa atliktais darbais
+  const handleWorkActImport = async (items: PdfLineItem[]) => {
+    if (!id) return
+    for (const item of items) {
+      await createWork.mutateAsync({
+        project_id: id,
+        name: item.name,
+        status: 'completed',
+        assignee_id: null,
+        deadline: null,
+        comments: null,
+        quantity: item.quantity,
+        unit: item.unit,
+        work_price: item.unit_price,
+        material_price: 0,
+      })
+    }
+  }
+
   const handleStatusChange = async (workId: string, status: string) => {
     await updateWork.mutateAsync({ id: workId, status: status as 'pending' | 'in_progress' | 'completed' })
   }
@@ -629,6 +650,7 @@ export function ProjectDetail() {
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Darbai</h3>
           <div className="flex items-center gap-3">
+            <WorkActPdfImport onImport={handleWorkActImport} />
             <button
               onClick={() => setShowAiAgent(!showAiAgent)}
               className="px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium"
@@ -884,6 +906,24 @@ export function ProjectDetail() {
                 )}
               </div>
             ))}
+
+            {/* Atliktų darbų sumos */}
+            {(() => {
+              const done = works.filter(w => w.status === 'completed')
+              if (done.length === 0) return null
+              const totalNet = done.reduce((s, w) => s + (w.quantity || 0) * (w.work_price || 0), 0)
+              const totalGross = totalNet * 1.21
+              return (
+                <div className="mt-4 pt-3 border-t border-gray-200 flex justify-end gap-6 text-sm">
+                  <span className="text-gray-600">
+                    Atliktų darbų suma be PVM: <strong className="text-gray-900">€{totalNet.toFixed(2)}</strong>
+                  </span>
+                  <span className="text-gray-600">
+                    Su PVM (21%): <strong className="text-gray-900">€{totalGross.toFixed(2)}</strong>
+                  </span>
+                </div>
+              )
+            })()}
           </div>
         ) : (
           <p className="text-gray-500 text-sm">Darbų dar nėra. Pridėkite pirmą darbą.</p>
