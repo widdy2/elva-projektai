@@ -69,6 +69,20 @@ export function useInvoiceItems(invoiceId: string | undefined) {
   })
 }
 
+// Sekantis sąskaitos numeris ELVA##### formatu (pvz. ELVA00136)
+async function nextInvoiceNumber(organizationId: string): Promise<string> {
+  const { data } = await supabase
+    .from('invoices')
+    .select('invoice_number')
+    .eq('organization_id', organizationId)
+
+  const max = (data || []).reduce((m, r) => {
+    const match = /^ELVA(\d+)$/i.exec((r as { invoice_number: string }).invoice_number || '')
+    return match ? Math.max(m, parseInt(match[1], 10)) : m
+  }, 0)
+  return `ELVA${String(max + 1).padStart(5, '0')}`
+}
+
 export function useCreateInvoice() {
   const queryClient = useQueryClient()
   const { data: organizationId } = useOrganization()
@@ -78,13 +92,10 @@ export function useCreateInvoice() {
       invoice,
       items,
     }: {
-      invoice: Omit<Invoice, 'id' | 'organization_id' | 'invoice_number' | 'created_at' | 'updated_at' | 'clients' | 'projects'>
+      invoice: Omit<Invoice, 'id' | 'organization_id' | 'invoice_number' | 'created_at' | 'updated_at' | 'clients' | 'projects'> & { invoice_number?: string }
       items: Omit<InvoiceItem, 'id' | 'invoice_id' | 'created_at'>[]
     }) => {
-      const { data: invoiceNumber, error: numError } = await supabase
-        .rpc('generate_invoice_number', { p_organization_id: organizationId })
-
-      if (numError) throw numError
+      const invoiceNumber = invoice.invoice_number?.trim() || await nextInvoiceNumber(organizationId as string)
 
       const { data: created, error } = await supabase
         .from('invoices')

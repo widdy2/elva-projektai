@@ -44,6 +44,7 @@ export function Invoices() {
   const [clientId, setClientId] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [invoiceNumber, setInvoiceNumber] = useState('')
   const [items, setItems] = useState<ItemRow[]>([{ name: '', quantity: '1', unit: 'vnt', unit_price: '', item_type: 'work' }])
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -67,6 +68,20 @@ export function Invoices() {
     setItems(items.filter((_, i) => i !== index))
   }
 
+  // Siūlomas kitas numeris ELVA##### formatu
+  const suggestedNumber = (() => {
+    const max = (invoices || []).reduce((m, inv) => {
+      const match = /^ELVA(\d+)$/i.exec(inv.invoice_number || '')
+      return match ? Math.max(m, parseInt(match[1], 10)) : m
+    }, 0)
+    return `ELVA${String(max + 1).padStart(5, '0')}`
+  })()
+
+  const openForm = () => {
+    setInvoiceNumber(suggestedNumber)
+    setShowForm(true)
+  }
+
   const subtotal = items.reduce((sum, i) => sum + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0)
   const vatRate = 21
   const vatAmount = subtotal * vatRate / 100
@@ -80,6 +95,7 @@ export function Invoices() {
     try {
       await createInvoice.mutateAsync({
         invoice: {
+          invoice_number: invoiceNumber.trim() || undefined,
           project_id: projectId || null,
           client_id: clientId || null,
           status: 'unpaid',
@@ -105,6 +121,7 @@ export function Invoices() {
       setClientId('')
       setDueDate('')
       setNotes('')
+      setInvoiceNumber('')
       setItems([{ name: '', quantity: '1', unit: 'vnt', unit_price: '', item_type: 'work' }])
     } catch (err) {
       alert(`Klaida kuriant sąskaitą: ${(err as Error).message}`)
@@ -258,7 +275,7 @@ export function Invoices() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Sąskaitos</h2>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => (showForm ? setShowForm(false) : openForm())}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
         >
           {showForm ? 'Atšaukti' : '+ Nauja sąskaita'}
@@ -269,7 +286,17 @@ export function Invoices() {
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Nauja sąskaita</h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Sąskaitos nr.</label>
+              <input
+                type="text"
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                placeholder="ELVA00001"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              />
+            </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">Objektas</label>
               <select
@@ -412,6 +439,7 @@ export function Invoices() {
                 expanded={expandedId === inv.id}
                 onToggle={() => setExpandedId(expandedId === inv.id ? null : inv.id)}
                 onStatusChange={(status) => updateInvoice.mutate({ id: inv.id, status: status as Invoice['status'] })}
+                onNumberChange={(num) => updateInvoice.mutate({ id: inv.id, invoice_number: num })}
                 onDelete={() => deleteInvoice.mutate(inv.id)}
                 onDownloadPdf={() => handleDownloadPdf(inv)}
               />
@@ -431,6 +459,7 @@ function InvoiceRow({
   expanded,
   onToggle,
   onStatusChange,
+  onNumberChange,
   onDelete,
   onDownloadPdf,
 }: {
@@ -438,10 +467,12 @@ function InvoiceRow({
   expanded: boolean
   onToggle: () => void
   onStatusChange: (status: string) => void
+  onNumberChange: (num: string) => void
   onDelete: () => void
   onDownloadPdf: () => void
 }) {
   const { data: items } = useInvoiceItems(expanded ? invoice.id : undefined)
+  const [editNumber, setEditNumber] = useState(invoice.invoice_number)
 
   const isOverdue = invoice.status === 'unpaid' && invoice.due_date && new Date(invoice.due_date) < new Date()
   const displayStatus = isOverdue ? 'overdue' : invoice.status
@@ -497,6 +528,23 @@ function InvoiceRow({
               <p className="text-gray-500 text-sm">Pozicijų nėra.</p>
             )}
             {invoice.notes && <p className="text-xs text-gray-500 mt-2">Pastabos: {invoice.notes}</p>}
+            <div className="flex items-center gap-2 mt-3">
+              <label className="text-xs text-gray-500 uppercase">Sąskaitos nr.:</label>
+              <input
+                type="text"
+                value={editNumber}
+                onChange={(e) => setEditNumber(e.target.value)}
+                className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
+              />
+              {editNumber.trim() && editNumber !== invoice.invoice_number && (
+                <button
+                  onClick={() => onNumberChange(editNumber.trim())}
+                  className="text-blue-600 hover:text-blue-800 text-xs"
+                >
+                  Išsaugoti
+                </button>
+              )}
+            </div>
           </td>
         </tr>
       )}
