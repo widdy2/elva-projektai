@@ -527,6 +527,36 @@ function InvoiceRow({
             ) : (
               <p className="text-gray-500 text-sm">Pozicijų nėra.</p>
             )}
+            {items && items.length > 0 && (() => {
+              const isMaterial = (i: { item_type?: string; name: string }) =>
+                i.item_type === 'material' || /\(medžiaga\)/i.test(i.name)
+              const worksSum = items.filter(i => !isMaterial(i)).reduce((s, i) => s + i.total, 0)
+              const materialsSum = items.filter(i => isMaterial(i)).reduce((s, i) => s + i.total, 0)
+              return (
+                <div className="mt-3 pt-3 border-t border-gray-200 text-sm space-y-1 max-w-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Darbai (be PVM):</span>
+                    <span className="font-medium">€{worksSum.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Medžiagos (be PVM):</span>
+                    <span className="font-medium">€{materialsSum.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Viso be PVM:</span>
+                    <span className="font-medium">€{(worksSum + materialsSum).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">PVM {invoice.vat_rate}%:</span>
+                    <span className="font-medium">€{invoice.vat_amount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between pt-1 border-t border-gray-200">
+                    <span className="text-gray-900 font-semibold">Viso su PVM:</span>
+                    <span className="font-semibold">€{invoice.total.toFixed(2)}</span>
+                  </div>
+                </div>
+              )
+            })()}
             {invoice.notes && <p className="text-xs text-gray-500 mt-2">Pastabos: {invoice.notes}</p>}
             <div className="flex items-center gap-2 mt-3">
               <label className="text-xs text-gray-500 uppercase">Sąskaitos nr.:</label>
