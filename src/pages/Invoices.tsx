@@ -123,9 +123,9 @@ export function Invoices() {
 
     // Antraštė pagal ELVA pavyzdį
     doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('DejaVuSans', 'bold')
     doc.text('PVM Sąskaita faktūra', 14, startY + 4)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('DejaVuSans', 'normal')
     doc.setFontSize(10)
     doc.text(`Dok. Nr. ${invoice.invoice_number}`, 14, startY + 11)
     doc.text(`Data: ${new Date(invoice.issue_date).toLocaleDateString('lt-LT')}`, 14, startY + 17)
@@ -138,10 +138,10 @@ export function Invoices() {
     const rightX = pageWidth / 2 + 6
 
     doc.setFontSize(10)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('DejaVuSans', 'bold')
     doc.text(org?.name || '', 14, blockY)
     doc.text('Užsakovas:', rightX, blockY)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('DejaVuSans', 'normal')
     doc.setFontSize(9)
 
     const sellerLines: string[] = []
@@ -162,10 +162,14 @@ export function Invoices() {
     if (invoice.projects?.name) buyerLines.push(`Objektas: ${invoice.projects.name}`)
     if (invoice.projects?.address) buyerLines.push(`Objekto adresas: ${invoice.projects.address}`)
 
-    sellerLines.forEach((l, i) => doc.text(l, 14, blockY + 6 + i * 4.5))
-    buyerLines.forEach((l, i) => doc.text(l, rightX, blockY + 6 + i * 4.5))
+    // Laužome eilutes, kad kairys blokas neužlietų dešiniojo
+    const colWidth = rightX - 14 - 4
+    const sellerWrapped = sellerLines.flatMap(l => doc.splitTextToSize(l, colWidth) as string[])
+    const buyerWrapped = buyerLines.flatMap(l => doc.splitTextToSize(l, pageWidth - 14 - rightX) as string[])
+    sellerWrapped.forEach((l, i) => doc.text(l, 14, blockY + 6 + i * 4.5))
+    buyerWrapped.forEach((l, i) => doc.text(l, rightX, blockY + 6 + i * 4.5))
 
-    const tableY = blockY + 10 + Math.max(sellerLines.length, buyerLines.length) * 4.5
+    const tableY = blockY + 10 + Math.max(sellerWrapped.length, buyerWrapped.length) * 4.5
 
     // Pozicijos: Darbai ir Medžiagos atskiromis sekcijomis
     const allItems = items || []
@@ -201,14 +205,15 @@ export function Invoices() {
       startY: tableY,
       head: [['Nr.', 'Pavadinimas', 'vnt./m.', 'Kiekis', 'Kaina', 'Suma']],
       body,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [66, 66, 66] },
+      styles: { fontSize: 9, font: 'DejaVuSans', overflow: 'linebreak', cellPadding: 1.5 },
+      headStyles: { fillColor: [66, 66, 66], font: 'DejaVuSans', fontStyle: 'bold' },
       columnStyles: {
         0: { cellWidth: 10 },
-        2: { cellWidth: 18 },
-        3: { cellWidth: 16, halign: 'right' },
-        4: { cellWidth: 22, halign: 'right' },
-        5: { cellWidth: 22, halign: 'right' },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 16 },
+        3: { cellWidth: 14, halign: 'right' },
+        4: { cellWidth: 20, halign: 'right' },
+        5: { cellWidth: 20, halign: 'right' },
       },
     })
 
@@ -216,10 +221,10 @@ export function Invoices() {
     doc.setFontSize(10)
     doc.text(`Suma ${invoice.subtotal.toFixed(2)}`, pageWidth - 14, finalY, { align: 'right' })
     doc.text(`PVM ${invoice.vat_rate}% ${invoice.vat_amount.toFixed(2)}`, pageWidth - 14, finalY + 5, { align: 'right' })
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('DejaVuSans', 'bold')
     doc.setFontSize(11)
     doc.text(`Suma apmokėjimui ${invoice.total.toFixed(2)}`, pageWidth - 14, finalY + 12, { align: 'right' })
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('DejaVuSans', 'normal')
 
     if (invoice.notes) {
       doc.setFontSize(9)

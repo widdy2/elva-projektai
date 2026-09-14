@@ -225,7 +225,9 @@ export function ProjectDetail() {
     const startY = await addOrgHeader(doc, org)
 
     doc.setFontSize(18)
-    doc.text('ATLIKTU DARBU AKTAS', pageWidth / 2, startY + 6, { align: 'center' })
+    doc.setFont('DejaVuSans', 'bold')
+    doc.text('ATLIKTŲ DARBŲ AKTAS', pageWidth / 2, startY + 6, { align: 'center' })
+    doc.setFont('DejaVuSans', 'normal')
     doc.setFontSize(12)
     doc.text(actNumber, pageWidth / 2, startY + 14, { align: 'center' })
 
@@ -244,25 +246,25 @@ export function ProjectDetail() {
         'Atliktas',
         w.deadline || '-',
       ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [66, 66, 66] },
+      styles: { fontSize: 9, font: 'DejaVuSans' },
+      headStyles: { fillColor: [66, 66, 66], font: 'DejaVuSans', fontStyle: 'bold' },
     })
 
     const materialsY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
     if (materials && materials.length > 0) {
       doc.setFontSize(12)
-      doc.text('Sunaudotos medziagos:', 14, materialsY)
+      doc.text('Sunaudotos medžiagos:', 14, materialsY)
       autoTable(doc, {
         startY: materialsY + 5,
-        head: [['Medziaga', 'Kiekis', 'Mato vnt.', 'Kaina EUR']],
+        head: [['Medžiaga', 'Kiekis', 'Mato vnt.', 'Kaina €']],
         body: materials.filter(m => m.used_quantity > 0 || m.warehouse_item_id).map(m => [
           m.name,
           (m.used_quantity > 0 ? m.used_quantity : m.purchased_quantity).toFixed(2),
           m.unit,
           ((m.used_quantity > 0 ? m.used_quantity : m.purchased_quantity) * m.unit_price).toFixed(2),
         ]),
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [66, 66, 66] },
+        styles: { fontSize: 9, font: 'DejaVuSans' },
+        headStyles: { fillColor: [66, 66, 66], font: 'DejaVuSans', fontStyle: 'bold' },
       })
     }
 

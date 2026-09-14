@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf'
 import type { Organization } from '../hooks/useOrganizationDetails'
+import { registerPdfFonts } from './pdfFonts'
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '')
@@ -37,6 +38,7 @@ async function loadImage(url: string): Promise<{ dataUrl: string; width: number;
  * Grąžina Y koordinatę, nuo kurios tęsti turinį.
  */
 export async function addOrgHeader(doc: jsPDF, org: Organization | null | undefined): Promise<number> {
+  await registerPdfFonts(doc)
   const pageWidth = doc.internal.pageSize.getWidth()
   const [r, g, b] = hexToRgb(org?.brand_color || '#3b82f6')
 
@@ -78,16 +80,20 @@ export async function addOrgHeader(doc: jsPDF, org: Organization | null | undefi
     if (contact) lines.push(contact)
 
     doc.setFontSize(11)
+    doc.setFont('DejaVuSans', 'bold')
     doc.setTextColor(r, g, b)
     if (lines[0]) doc.text(lines[0], pageWidth - 14, contentY + 4, { align: 'right' })
 
+    doc.setFont('DejaVuSans', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(90, 90, 90)
-    lines.slice(1).forEach((line, i) => {
+    // Laužome per ilgas eilutes, kad nebėgtų už lapo krašto
+    const wrapped = lines.slice(1).flatMap(l => doc.splitTextToSize(l, 80) as string[])
+    wrapped.forEach((line, i) => {
       doc.text(line, pageWidth - 14, contentY + 9 + i * 4, { align: 'right' })
     })
 
-    contentY = Math.max(contentY + 16, contentY + 9 + (lines.length - 1) * 4 + 4)
+    contentY = Math.max(contentY + 16, contentY + 9 + (wrapped.length - 1) * 4 + 4)
   } else {
     contentY += 12
   }
