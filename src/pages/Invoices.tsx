@@ -121,16 +121,16 @@ export function Invoices() {
     const pageWidth = doc.internal.pageSize.getWidth()
     const startY = await addOrgHeader(doc, org)
 
-    // Antraštė pagal ELVA pavyzdį
+    // Antraštė pagal ELVA pavyzdį — centruota
     doc.setFontSize(16)
     doc.setFont('DejaVuSans', 'bold')
-    doc.text('PVM Sąskaita faktūra', 14, startY + 4)
+    doc.text('PVM Sąskaita faktūra', pageWidth / 2, startY + 4, { align: 'center' })
     doc.setFont('DejaVuSans', 'normal')
     doc.setFontSize(10)
-    doc.text(`Dok. Nr. ${invoice.invoice_number}`, 14, startY + 11)
-    doc.text(`Data: ${new Date(invoice.issue_date).toLocaleDateString('lt-LT')}`, 14, startY + 17)
+    doc.text(`Dok. Nr. ${invoice.invoice_number}`, pageWidth / 2, startY + 11, { align: 'center' })
+    doc.text(`Data: ${new Date(invoice.issue_date).toLocaleDateString('lt-LT')}`, pageWidth / 2, startY + 17, { align: 'center' })
     if (invoice.due_date) {
-      doc.text(`Apmokėti iki: ${new Date(invoice.due_date).toLocaleDateString('lt-LT')}`, 14, startY + 23)
+      doc.text(`Apmokėti iki: ${new Date(invoice.due_date).toLocaleDateString('lt-LT')}`, pageWidth / 2, startY + 23, { align: 'center' })
     }
 
     // Pardavėjas (kairė) / Užsakovas (dešinė)
@@ -217,7 +217,13 @@ export function Invoices() {
       },
     })
 
-    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    // Jei sumos/parašai netelpa puslapyje — naujas puslapis
+    const pageHeight = doc.internal.pageSize.getHeight()
+    let finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    if (finalY + 50 > pageHeight - 14) {
+      doc.addPage()
+      finalY = 20
+    }
     doc.setFontSize(10)
     doc.text(`Suma ${invoice.subtotal.toFixed(2)}`, pageWidth - 14, finalY, { align: 'right' })
     doc.text(`PVM ${invoice.vat_rate}% ${invoice.vat_amount.toFixed(2)}`, pageWidth - 14, finalY + 5, { align: 'right' })
@@ -235,9 +241,12 @@ export function Invoices() {
     const sigY = finalY + (invoice.notes ? 30 : 24)
     doc.setFontSize(10)
     doc.text('Sąskaitą išrašė:', 14, sigY)
-    doc.line(48, sigY, 100, sigY)
     doc.text('Užsakovas:', rightX, sigY)
-    doc.line(rightX + 26, sigY, pageWidth - 14, sigY)
+    doc.line(14, sigY + 12, 14 + 70, sigY + 12)
+    doc.line(rightX, sigY + 12, rightX + 70, sigY + 12)
+    doc.setFontSize(8)
+    doc.text('Vardas, pavardė, parašas', 14, sigY + 16)
+    doc.text('Vardas, pavardė, parašas', rightX, sigY + 16)
 
     doc.save(`${invoice.invoice_number}.pdf`)
   }

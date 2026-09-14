@@ -71,29 +71,23 @@ export async function addOrgHeader(doc: jsPDF, org: Organization | null | undefi
 
   // Rekvizitai dešinėje
   if (org) {
-    const lines: string[] = []
-    if (org.name) lines.push(org.name)
-    if (org.code) lines.push(`Imones kodas: ${org.code}`)
-    if (org.vat_code) lines.push(`PVM kodas: ${org.vat_code}`)
-    if (org.address) lines.push(org.address)
-    const contact = [org.phone, org.email].filter(Boolean).join(' | ')
-    if (contact) lines.push(contact)
-
     doc.setFontSize(11)
     doc.setFont('DejaVuSans', 'bold')
     doc.setTextColor(r, g, b)
-    if (lines[0]) doc.text(lines[0], pageWidth - 14, contentY + 4, { align: 'right' })
+    if (org.name) doc.text(org.name, pageWidth - 14, contentY + 4, { align: 'right' })
 
     doc.setFont('DejaVuSans', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(90, 90, 90)
-    // Laužome per ilgas eilutes, kad nebėgtų už lapo krašto
-    const wrapped = lines.slice(1).flatMap(l => doc.splitTextToSize(l, 80) as string[])
-    wrapped.forEach((line, i) => {
+    const slogans = [
+      'Išmanių namų sprendimai jums',
+      'Kokybė, patikimumas, saugumas',
+    ]
+    slogans.forEach((line, i) => {
       doc.text(line, pageWidth - 14, contentY + 9 + i * 4, { align: 'right' })
     })
 
-    contentY = Math.max(contentY + 16, contentY + 9 + (wrapped.length - 1) * 4 + 4)
+    contentY = Math.max(contentY + 16, contentY + 9 + slogans.length * 4 + 4)
   } else {
     contentY += 12
   }
