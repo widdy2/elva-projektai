@@ -6,6 +6,7 @@ export function PublicQuote() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
   const [quote, setQuote] = useState<any>(null)
+  const [org, setOrg] = useState<{ name: string; logo_url: string | null; brand_color: string | null; phone: string | null; email: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,6 +31,12 @@ export function PublicQuote() {
       }
 
       setQuote(data)
+
+      // Organizacijos prekinis ženklas (logo, spalva) — saugi RPC funkcija
+      const { data: orgData } = await supabase
+        .rpc('get_public_quote_org', { quote_token: token })
+      if (orgData && orgData.length > 0) setOrg(orgData[0])
+
       setLoading(false)
     }
 
@@ -182,17 +189,48 @@ export function PublicQuote() {
   const totalVat = subtotal * 0.21
   const total = subtotal + totalVat
 
+  const brandColor = org?.brand_color || '#3b82f6'
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          {/* Įmonės antraštė su logo ir spalva */}
+          <div
+            className="px-6 py-5 flex items-center justify-between"
+            style={{ backgroundColor: brandColor }}
+          >
+            <div className="flex items-center gap-4">
+              {org?.logo_url && (
+                <img
+                  src={org.logo_url}
+                  alt={org.name || 'Logotipas'}
+                  className="h-12 w-auto bg-white rounded p-1 object-contain"
+                />
+              )}
+              <div>
+                <p className="text-white text-xl font-bold">{org?.name || 'Pasiūlymas'}</p>
+                {(org?.phone || org?.email) && (
+                  <p className="text-white/80 text-xs mt-0.5">
+                    {[org?.phone, org?.email].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="text-white/90 text-sm font-medium">DARBO PASIŪLYMAS</p>
+          </div>
+
+          <div className="p-6">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Pasiūlymas</h1>
+              <h1 className="text-2xl font-bold" style={{ color: brandColor }}>Pasiūlymas</h1>
               <p className="text-gray-600">Data: {new Date(quote.created_at).toLocaleDateString('lt-LT')}</p>
             </div>
             <div className="text-right">
-              <span className="px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+              <span
+                className="px-3 py-1 rounded-full text-sm font-semibold text-white"
+                style={{ backgroundColor: brandColor }}
+              >
                 {quote.status === 'draft' && 'Juodraštis'}
                 {quote.status === 'sent' && 'Išsiųstas'}
                 {quote.status === 'pending' && 'Laukiama'}
@@ -218,7 +256,7 @@ export function PublicQuote() {
 
           {serviceItems.length > 0 && (
             <div className="mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Paslaugos</h2>
+              <h2 className="text-lg font-semibold mb-4" style={{ color: brandColor }}>Paslaugos</h2>
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
@@ -248,7 +286,7 @@ export function PublicQuote() {
 
           {productItems.length > 0 && (
             <div className="mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Prekės</h2>
+              <h2 className="text-lg font-semibold mb-4" style={{ color: brandColor }}>Prekės</h2>
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
@@ -276,7 +314,7 @@ export function PublicQuote() {
             </div>
           )}
 
-          <div className="bg-gray-50 p-4 rounded-md mb-6">
+          <div className="bg-gray-50 p-4 rounded-md mb-6 border-l-4" style={{ borderLeftColor: brandColor }}>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Suma be PVM:</span>
@@ -288,7 +326,7 @@ export function PublicQuote() {
               </div>
               <div className="flex justify-between font-bold border-t pt-1">
                 <span className="text-gray-700">Viso:</span>
-                <span className="text-gray-900">€{total.toFixed(2)}</span>
+                <span className="text-lg" style={{ color: brandColor }}>€{total.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -309,6 +347,13 @@ export function PublicQuote() {
               </button>
             </div>
           )}
+
+          {org?.name && (
+            <p className="text-center text-xs text-gray-400 mt-6 pt-4 border-t">
+              Pasiūlymą parengė {org.name}
+            </p>
+          )}
+          </div>
         </div>
       </div>
     </div>
