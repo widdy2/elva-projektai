@@ -498,9 +498,14 @@ export function Quotes() {
                 </div>
               </div>
 
-              {/* Prekės */}
+              {/* Prekės — rodomos tik pradėjus ieškoti */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">Prekės</h4>
+                {!searchTerm.trim() ? (
+                  <p className="text-sm text-gray-400 border border-dashed border-gray-200 rounded p-2">
+                    Pradėkite vesti paiešką, kad matytumėte prekes
+                  </p>
+                ) : (
                 <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded p-2">
                   {priceItems?.filter(item =>
                     item.item_type === 'product' &&
@@ -535,11 +540,17 @@ export function Quotes() {
                     <p className="text-sm text-gray-400">Nėra prekių</p>
                   )}
                 </div>
+                )}
               </div>
 
-              {/* Sandėlio prekės */}
+              {/* Sandėlio prekės — rodomos tik pradėjus ieškoti */}
               <div className="mt-4">
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">Sandėlio prekės</h4>
+                {!searchTerm.trim() ? (
+                  <p className="text-sm text-gray-400 border border-dashed border-gray-200 rounded p-2">
+                    Pradėkite vesti paiešką, kad matytumėte sandėlio prekes
+                  </p>
+                ) : (
                 <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded p-2">
                   {warehouseItems?.filter(item =>
                     item.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -576,6 +587,7 @@ export function Quotes() {
                     <p className="text-sm text-gray-400">Sandėlyje nėra prekių</p>
                   )}
                 </div>
+                )}
               </div>
             </div>
             <div className="bg-gray-50 p-4 rounded-md">
