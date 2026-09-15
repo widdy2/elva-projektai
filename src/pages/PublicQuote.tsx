@@ -44,100 +44,23 @@ export function PublicQuote() {
   }, [token])
 
   const handleAccept = async () => {
-    if (!quote) return
+    if (!quote || !token) return
 
-    console.log('Starting quote acceptance, quote:', quote)
+    // Viena atomi operacija serveryje: statusas + klientas + objektas + darbai + medžiagos
+    const { error: rpcError } = await supabase
+      .rpc('accept_quote', { quote_token: token })
 
-    const { error: updateError } = await supabase
-      .from('quotes')
-      .update({
-        status: 'accepted',
-        accepted_at: new Date().toISOString(),
-        accepted_ip: await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip),
-      })
-      .eq('id', quote.id)
-
-    if (updateError) {
-      console.error('Error updating quote:', updateError)
-      alert('Klaida atnaujinant pasiūlymą')
+    if (rpcError) {
+      console.error('Error accepting quote:', rpcError)
+      alert(`Klaida priimant pasiūlymą: ${rpcError.message}`)
       return
     }
 
-    // Sukurti klientą
-    console.log('Creating client with organization_id:', quote.organization_id)
-    const { data: client, error: clientError } = await supabase
-      .from('clients')
-      .insert({
-        organization_id: quote.organization_id,
-        name: quote.client_name || quote.clients?.name || 'Klientas',
-        email: quote.client_email || quote.clients?.email,
-        phone: quote.client_phone || quote.clients?.phone,
-        address: quote.address,
-      })
-      .select()
-      .single()
-
-    if (clientError) {
-      console.error('Error creating client:', clientError)
-      alert('Klaida sukuriant klientą')
-      return
-    }
-
-    console.log('Client created:', client)
-
-    // Sukurti projektą
-    console.log('Creating project with organization_id:', quote.organization_id, 'client_id:', client.id)
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .insert({
-        organization_id: quote.organization_id,
-        client_id: client.id,
-        name: `${client.name} - ${quote.address}`,
-        address: quote.address,
-        status: 'planning',
-        budget: quote.total,
-      })
-      .select()
-      .single()
-
-    if (projectError) {
-      console.error('Error creating project:', projectError)
-      alert('Klaida sukuriant projektą')
-      return
-    }
-
-    console.log('Project created:', project)
-
-    // Sukurti project_works iš quote_items
-    console.log('Creating project works from quote items:', quote.quote_items)
-    for (const item of quote.quote_items || []) {
-      await supabase
-        .from('project_works')
-        .insert({
-          project_id: project.id,
-          name: item.name,
-          status: 'pending',
-          quantity: item.quantity || 1,
-          work_price: item.work_price || 0,
-          material_price: item.material_price || 0,
-        })
-
-      // Sandėlio prekės - sukurti project_materials įrašą
-      if (item.warehouse_item_id) {
-        await supabase
-          .from('project_materials')
-          .insert({
-            project_id: project.id,
-            warehouse_item_id: item.warehouse_item_id,
-            name: item.name,
-            unit: 'vnt',
-            planned_quantity: item.quantity || 1,
-            purchased_quantity: item.quantity || 1,
-            used_quantity: 0,
-            unit_price: item.material_price || 0,
-          })
-      }
-    }
+    // Best-effort: įrašome priėmėjo IP (nekritinė informacija)
+    try {
+      const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip)
+      await supabase.from('quotes').update({ accepted_ip: ip }).eq('id', quote.id)
+    } catch { /* IP nebūtinas */ }
 
     alert('Pasiūlymas priimtas, sukurtas klientas ir objektas!')
     navigate('/')
