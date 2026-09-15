@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuotes, useCreateQuote, useCreateQuoteItem, useUpdateQuote, useQuoteItems, useUpdateQuoteItem, useDeleteQuoteItem, useDeleteQuote, Quote } from '../hooks/useQuotes'
+import { useQuotes, useCreateQuote, useCreateQuoteItem, useUpdateQuote, useQuoteItems, useUpdateQuoteItem, useDeleteQuoteItem, useDeleteQuote, Quote, QuoteItem } from '../hooks/useQuotes'
 import { usePriceItems, useCreatePriceItem } from '../hooks/usePricelist'
 import { useWarehouseItems } from '../hooks/useMaterials'
 import { supabase } from '../lib/supabase'
@@ -24,7 +24,7 @@ const statusColors: Record<string, string> = {
 
 export function Quotes() {
   const [showForm, setShowForm] = useState(false)
-  const [showNewItemForm, setShowNewItemForm] = useState(false)
+  const [newItemForm, setNewItemForm] = useState<'service' | 'product' | null>(null)
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
   const [clientPhone, setClientPhone] = useState('')
@@ -32,7 +32,6 @@ export function Quotes() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [newItemName, setNewItemName] = useState('')
-  const [newItemType, setNewItemType] = useState<'service' | 'product'>('service')
   const [newItemPrice, setNewItemPrice] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -95,30 +94,21 @@ export function Quotes() {
 
   const handleCreateNewItem = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newItemName || !newItemPrice) return
-
-    console.log('Creating new item:', {
-      name: newItemName,
-      item_type: newItemType,
-      labor_price: newItemType === 'service' ? parseFloat(newItemPrice) : 0,
-      material_price: newItemType === 'product' ? parseFloat(newItemPrice) : 0,
-      category_id: null,
-    })
+    if (!newItemName || !newItemPrice || !newItemForm) return
 
     try {
       await createPriceItem.mutateAsync({
         name: newItemName,
-        item_type: newItemType,
-        labor_price: newItemType === 'service' ? parseFloat(newItemPrice) : 0,
-        material_price: newItemType === 'product' ? parseFloat(newItemPrice) : 0,
+        item_type: newItemForm,
+        labor_price: newItemForm === 'service' ? parseFloat(newItemPrice) : 0,
+        material_price: newItemForm === 'product' ? parseFloat(newItemPrice) : 0,
         category_id: null as any,
       })
 
       setNewItemName('')
-      setNewItemType('service')
       setNewItemPrice('')
       setSearchTerm('')
-      setShowNewItemForm(false)
+      setNewItemForm(null)
     } catch (error) {
       console.error('Error creating item:', error)
     }
@@ -443,13 +433,22 @@ export function Quotes() {
                 <label className="block text-sm font-medium text-gray-700">
                   Pozicijos
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setShowNewItemForm(!showNewItemForm)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  + Nauja pozicija
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewItemForm(newItemForm === 'service' ? null : 'service')}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    + Nauja paslauga
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewItemForm(newItemForm === 'product' ? null : 'product')}
+                    className="text-sm text-orange-600 hover:text-orange-800"
+                  >
+                    + Nauja prekė
+                  </button>
+                </div>
               </div>
               <input
                 type="text"
@@ -461,7 +460,7 @@ export function Quotes() {
 
               {/* Paslaugos */}
               <div className="mb-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Paslaugos</h4>
+                <h4 className="text-sm font-semibold text-blue-700 mb-2 border-b border-blue-200 pb-1">Paslaugos</h4>
                 <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded p-2">
                   {priceItems?.filter(item =>
                     item.item_type === 'service' &&
@@ -500,7 +499,7 @@ export function Quotes() {
 
               {/* Prekės — rodomos tik pradėjus ieškoti */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Prekės</h4>
+                <h4 className="text-sm font-semibold text-orange-700 mb-2 border-b border-orange-200 pb-1">Prekės</h4>
                 {!searchTerm.trim() ? (
                   <p className="text-sm text-gray-400 border border-dashed border-gray-200 rounded p-2">
                     Pradėkite vesti paiešką, kad matytumėte prekes
@@ -545,7 +544,7 @@ export function Quotes() {
 
               {/* Sandėlio prekės — rodomos tik pradėjus ieškoti */}
               <div className="mt-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Sandėlio prekės</h4>
+                <h4 className="text-sm font-semibold text-orange-700 mb-2 border-b border-orange-200 pb-1">Sandėlio prekės</h4>
                 {!searchTerm.trim() ? (
                   <p className="text-sm text-gray-400 border border-dashed border-gray-200 rounded p-2">
                     Pradėkite vesti paiešką, kad matytumėte sandėlio prekes
@@ -621,9 +620,11 @@ export function Quotes() {
         </div>
       )}
 
-      {showNewItemForm && (
+      {newItemForm && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Nauja pozicija</h3>
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">
+            {newItemForm === 'service' ? 'Nauja paslauga' : 'Nauja prekė'}
+          </h3>
           <form onSubmit={handleCreateNewItem} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -640,20 +641,7 @@ export function Quotes() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tipas
-              </label>
-              <select
-                value={newItemType}
-                onChange={(e) => setNewItemType(e.target.value as 'service' | 'product')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option value="service">Paslauga</option>
-                <option value="product">Prekė</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {newItemType === 'service' ? 'Darbo kaina' : 'Prekės kaina'}
+                {newItemForm === 'service' ? 'Darbo kaina' : 'Prekės kaina'}
               </label>
               <input
                 type="number"
@@ -674,7 +662,7 @@ export function Quotes() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowNewItemForm(false)}
+                onClick={() => setNewItemForm(null)}
                 className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
               >
                 Atšaukti
@@ -831,78 +819,153 @@ export function Quotes() {
                 </button>
               </div>
 
-              {/* Pozicijos */}
+              {/* Pozicijos — atskirtos paslaugos ir prekės */}
               <div className="mb-6">
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">Pozicijos</h4>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs text-gray-500">
-                      <th className="py-1">Pavadinimas</th>
-                      <th className="py-1 w-20">Kiekis</th>
-                      <th className="py-1 w-24">Darbas €</th>
-                      <th className="py-1 w-24">Medž. €</th>
-                      <th className="py-1 w-20 text-right">Suma €</th>
-                      <th className="py-1 w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {quoteItems?.map((item) => (
-                      <tr key={item.id} className="border-b">
-                        <td className="py-1.5 pr-2">{item.name}</td>
-                        <td className="py-1.5">
-                          <input
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            defaultValue={item.quantity}
-                            onBlur={(e) => {
-                              const val = parseFloat(e.target.value)
-                              if (val > 0 && val !== item.quantity) handleUpdateItem(item.id, 'quantity', val)
-                            }}
-                            className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
-                          />
-                        </td>
-                        <td className="py-1.5">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            defaultValue={item.work_price}
-                            onBlur={(e) => {
-                              const val = parseFloat(e.target.value) || 0
-                              if (val !== item.work_price) handleUpdateItem(item.id, 'work_price', val)
-                            }}
-                            className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
-                          />
-                        </td>
-                        <td className="py-1.5">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            defaultValue={item.material_price}
-                            onBlur={(e) => {
-                              const val = parseFloat(e.target.value) || 0
-                              if (val !== item.material_price) handleUpdateItem(item.id, 'material_price', val)
-                            }}
-                            className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
-                          />
-                        </td>
-                        <td className="py-1.5 text-right">
-                          {((item.work_price + item.material_price) * item.quantity).toFixed(2)}
-                        </td>
-                        <td className="py-1.5 text-right">
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="text-red-500 hover:text-red-700 text-xs"
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {(() => {
+                  const isProduct = (item: QuoteItem) => {
+                    if (item.warehouse_item_id) return true
+                    const pi = priceItems?.find(p => p.id === item.price_item_id)
+                    if (pi) return pi.item_type === 'product'
+                    return item.work_price === 0
+                  }
+                  const services = (quoteItems || []).filter(i => !isProduct(i))
+                  const products = (quoteItems || []).filter(isProduct)
+                  const servicesSum = services.reduce((s, i) => s + (i.work_price + i.material_price) * i.quantity, 0)
+                  const productsSum = products.reduce((s, i) => s + (i.work_price + i.material_price) * i.quantity, 0)
+
+                  const qtyCell = (item: QuoteItem) => (
+                    <td className="py-1.5">
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        defaultValue={item.quantity}
+                        onBlur={(e) => {
+                          const val = parseFloat(e.target.value)
+                          if (val > 0 && val !== item.quantity) handleUpdateItem(item.id, 'quantity', val)
+                        }}
+                        className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                      />
+                    </td>
+                  )
+                  const deleteCell = (item: QuoteItem) => (
+                    <td className="py-1.5 text-right">
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="text-red-500 hover:text-red-700 text-xs"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  )
+
+                  return (
+                    <>
+                      {/* Paslaugos */}
+                      <p className="text-xs font-semibold text-blue-700 uppercase mb-1">Paslaugos</p>
+                      {services.length > 0 ? (
+                        <table className="w-full text-sm mb-1">
+                          <thead>
+                            <tr className="border-b text-left text-xs text-gray-500">
+                              <th className="py-1">Pavadinimas</th>
+                              <th className="py-1 w-20">Kiekis</th>
+                              <th className="py-1 w-24">Darbas €</th>
+                              <th className="py-1 w-24">Medž. €</th>
+                              <th className="py-1 w-20 text-right">Suma €</th>
+                              <th className="py-1 w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {services.map((item) => (
+                              <tr key={item.id} className="border-b">
+                                <td className="py-1.5 pr-2">{item.name}</td>
+                                {qtyCell(item)}
+                                <td className="py-1.5">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    defaultValue={item.work_price}
+                                    onBlur={(e) => {
+                                      const val = parseFloat(e.target.value) || 0
+                                      if (val !== item.work_price) handleUpdateItem(item.id, 'work_price', val)
+                                    }}
+                                    className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                  />
+                                </td>
+                                <td className="py-1.5">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    defaultValue={item.material_price}
+                                    onBlur={(e) => {
+                                      const val = parseFloat(e.target.value) || 0
+                                      if (val !== item.material_price) handleUpdateItem(item.id, 'material_price', val)
+                                    }}
+                                    className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                  />
+                                </td>
+                                <td className="py-1.5 text-right">
+                                  {((item.work_price + item.material_price) * item.quantity).toFixed(2)}
+                                </td>
+                                {deleteCell(item)}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="text-sm text-gray-400 mb-1">Paslaugų nėra</p>
+                      )}
+                      <p className="text-xs text-gray-500 text-right mb-3">Paslaugų suma: €{servicesSum.toFixed(2)}</p>
+
+                      {/* Prekės */}
+                      <p className="text-xs font-semibold text-orange-700 uppercase mb-1">Prekės</p>
+                      {products.length > 0 ? (
+                        <table className="w-full text-sm mb-1">
+                          <thead>
+                            <tr className="border-b text-left text-xs text-gray-500">
+                              <th className="py-1">Pavadinimas</th>
+                              <th className="py-1 w-20">Kiekis</th>
+                              <th className="py-1 w-24">Kaina €</th>
+                              <th className="py-1 w-20 text-right">Suma €</th>
+                              <th className="py-1 w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {products.map((item) => (
+                              <tr key={item.id} className="border-b">
+                                <td className="py-1.5 pr-2">{item.name}</td>
+                                {qtyCell(item)}
+                                <td className="py-1.5">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    defaultValue={item.material_price}
+                                    onBlur={(e) => {
+                                      const val = parseFloat(e.target.value) || 0
+                                      if (val !== item.material_price) handleUpdateItem(item.id, 'material_price', val)
+                                    }}
+                                    className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                  />
+                                </td>
+                                <td className="py-1.5 text-right">
+                                  {((item.work_price + item.material_price) * item.quantity).toFixed(2)}
+                                </td>
+                                {deleteCell(item)}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="text-sm text-gray-400 mb-1">Prekių nėra</p>
+                      )}
+                      <p className="text-xs text-gray-500 text-right">Prekių suma: €{productsSum.toFixed(2)}</p>
+                    </>
+                  )
+                })()}
 
                 {/* Pridėti poziciją */}
                 <div className="mt-3">
@@ -915,10 +978,16 @@ export function Quotes() {
                       className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
                     />
                     <button
-                      onClick={() => setShowModalNewItem(!showModalNewItem)}
+                      onClick={() => { setModalNewItemType('service'); setShowModalNewItem(true) }}
                       className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap px-2"
                     >
-                      + Nauja pozicija
+                      + Paslauga
+                    </button>
+                    <button
+                      onClick={() => { setModalNewItemType('product'); setShowModalNewItem(true) }}
+                      className="text-sm text-orange-600 hover:text-orange-800 whitespace-nowrap px-2"
+                    >
+                      + Prekė
                     </button>
                   </div>
 
@@ -932,15 +1001,10 @@ export function Quotes() {
                         className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
                         required
                       />
-                      <div className="flex space-x-2">
-                        <select
-                          value={modalNewItemType}
-                          onChange={(e) => setModalNewItemType(e.target.value as 'service' | 'product')}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm"
-                        >
-                          <option value="service">Paslauga</option>
-                          <option value="product">Prekė</option>
-                        </select>
+                      <div className="flex space-x-2 items-center">
+                        <span className={`text-xs font-semibold w-16 ${modalNewItemType === 'service' ? 'text-blue-700' : 'text-orange-700'}`}>
+                          {modalNewItemType === 'service' ? 'Paslauga' : 'Prekė'}
+                        </span>
                         <input
                           type="number"
                           step="0.01"
