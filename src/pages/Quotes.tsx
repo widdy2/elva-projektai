@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuotes, useCreateQuote, useCreateQuoteItem, useUpdateQuote, useQuoteItems, useUpdateQuoteItem, useDeleteQuoteItem, useDeleteQuote, Quote, QuoteItem } from '../hooks/useQuotes'
-import { usePriceItems, useCreatePriceItem } from '../hooks/usePricelist'
-import { useWarehouseItems } from '../hooks/useMaterials'
+import { usePriceItems, useCreatePriceItem, useUpdatePriceItem } from '../hooks/usePricelist'
+import { useWarehouseItems, useUpdateWarehouseItem } from '../hooks/useMaterials'
 import { supabase } from '../lib/supabase'
 
 const statusLabels: Record<string, string> = {
@@ -42,6 +42,8 @@ export function Quotes() {
   const createQuoteItem = useCreateQuoteItem()
   const updateQuote = useUpdateQuote()
   const createPriceItem = useCreatePriceItem()
+  const updatePriceItem = useUpdatePriceItem()
+  const updateWarehouseItem = useUpdateWarehouseItem()
 
   const [selectedWarehouse, setSelectedWarehouse] = useState<Set<string>>(new Set())
   const [warehouseQuantities, setWarehouseQuantities] = useState<Record<string, number>>({})
@@ -284,13 +286,24 @@ export function Quotes() {
     }
   }
 
-  const handleUpdateItem = async (itemId: string, field: 'quantity' | 'work_price' | 'material_price', value: number) => {
+  const handleUpdateItem = async (itemId: string, field: 'quantity' | 'work_price' | 'material_price' | 'name', value: number | string) => {
     if (!selectedQuote) return
     try {
       await updateQuoteItem.mutateAsync({ id: itemId, [field]: value })
       await recalcQuoteTotals(selectedQuote.id)
     } catch (err) {
       alert(`Klaida atnaujinant poziciją: ${(err as Error).message}`)
+    }
+  }
+
+  // Pavadinimo taisymas kūrimo formoje — atnaujina kainyną arba sandėlį
+  const handleRenameItem = (id: string, newName: string, oldName: string) => {
+    const name = newName.trim()
+    if (!name || name === oldName) return
+    if (warehouseItems?.some(w => w.id === id)) {
+      updateWarehouseItem.mutate({ id, name })
+    } else {
+      updatePriceItem.mutate({ id, name })
     }
   }
 
@@ -473,7 +486,12 @@ export function Quotes() {
                         onChange={() => handleItemToggle(item.id)}
                         className="rounded"
                       />
-                      <span className="flex-1">{item.name}</span>
+                      <input
+                        type="text"
+                        defaultValue={item.name}
+                        onBlur={(e) => handleRenameItem(item.id, e.target.value, item.name)}
+                        className="flex-1 px-1 py-0.5 border border-transparent hover:border-gray-300 focus:border-blue-400 rounded text-sm"
+                      />
                       <input
                         type="number"
                         min="0.01"
@@ -517,7 +535,12 @@ export function Quotes() {
                         onChange={() => handleItemToggle(item.id)}
                         className="rounded"
                       />
-                      <span className="flex-1">{item.name}</span>
+                      <input
+                        type="text"
+                        defaultValue={item.name}
+                        onBlur={(e) => handleRenameItem(item.id, e.target.value, item.name)}
+                        className="flex-1 px-1 py-0.5 border border-transparent hover:border-gray-300 focus:border-blue-400 rounded text-sm"
+                      />
                       <input
                         type="number"
                         min="0.01"
@@ -561,7 +584,12 @@ export function Quotes() {
                         onChange={() => handleWarehouseToggle(item.id)}
                         className="rounded"
                       />
-                      <span className="flex-1">{item.name}</span>
+                      <input
+                        type="text"
+                        defaultValue={item.name}
+                        onBlur={(e) => handleRenameItem(item.id, e.target.value, item.name)}
+                        className="flex-1 px-1 py-0.5 border border-transparent hover:border-gray-300 focus:border-blue-400 rounded text-sm"
+                      />
                       <span className="text-xs text-gray-400">
                         sandėlyje: {item.quantity} {item.unit}
                       </span>
@@ -879,7 +907,17 @@ export function Quotes() {
                           <tbody>
                             {services.map((item) => (
                               <tr key={item.id} className="border-b">
-                                <td className="py-1.5 pr-2">{item.name}</td>
+                                <td className="py-1.5 pr-2">
+                                  <input
+                                    type="text"
+                                    defaultValue={item.name}
+                                    onBlur={(e) => {
+                                      const val = e.target.value.trim()
+                                      if (val && val !== item.name) handleUpdateItem(item.id, 'name', val)
+                                    }}
+                                    className="w-full px-1 py-0.5 border border-transparent hover:border-gray-300 focus:border-blue-400 rounded text-sm"
+                                  />
+                                </td>
                                 {qtyCell(item)}
                                 <td className="py-1.5">
                                   <input
@@ -936,7 +974,17 @@ export function Quotes() {
                           <tbody>
                             {products.map((item) => (
                               <tr key={item.id} className="border-b">
-                                <td className="py-1.5 pr-2">{item.name}</td>
+                                <td className="py-1.5 pr-2">
+                                  <input
+                                    type="text"
+                                    defaultValue={item.name}
+                                    onBlur={(e) => {
+                                      const val = e.target.value.trim()
+                                      if (val && val !== item.name) handleUpdateItem(item.id, 'name', val)
+                                    }}
+                                    className="w-full px-1 py-0.5 border border-transparent hover:border-gray-300 focus:border-blue-400 rounded text-sm"
+                                  />
+                                </td>
                                 {qtyCell(item)}
                                 <td className="py-1.5">
                                   <input
