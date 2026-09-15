@@ -12,6 +12,7 @@ import { useProfiles } from '../hooks/useProfiles'
 import { useOrganizationDetails } from '../hooks/useOrganizationDetails'
 import { addOrgHeader } from '../lib/pdfHeader'
 import { WorkActPdfImport } from '../components/WorkActPdfImport'
+import { PdfImport } from '../components/PdfImport'
 import { PdfLineItem } from '../lib/pdfParse'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -346,6 +347,24 @@ export function ProjectDetail() {
         unit: item.unit,
         work_price: item.unit_price,
         material_price: 0,
+      })
+    }
+  }
+
+  // Medžiagų PDF importas — pozicijos iš tiekėjo sąskaitos/važtaraščio
+  const handleMaterialPdfImport = async (items: PdfLineItem[]) => {
+    if (!id) return
+    for (const item of items) {
+      await createMaterial.mutateAsync({
+        project_id: id,
+        warehouse_item_id: null,
+        name: item.name,
+        unit: item.unit,
+        planned_quantity: item.quantity,
+        purchased_quantity: item.quantity,
+        used_quantity: 0,
+        unit_price: item.unit_price,
+        stock_deducted: false,
       })
     }
   }
@@ -935,9 +954,12 @@ export function ProjectDetail() {
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Medžiagos ({materials?.length || 0})
-        </h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Medžiagos ({materials?.length || 0})
+          </h3>
+          <PdfImport onImport={handleMaterialPdfImport} />
+        </div>
 
         <form onSubmit={handleAddMaterial} className="flex gap-2 mb-4 flex-wrap">
           <input
