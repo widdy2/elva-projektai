@@ -8,6 +8,9 @@
 -- SECURITY DEFINER — anonimas gali vykdyti apeinant RLS, bet funkcija
 -- veikia tik su konkrečiu public_token (neįmanoma kurti savavališkai).
 
+-- Objekto pavadinimo laukas pasiūlyme
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS object_name TEXT;
+
 CREATE OR REPLACE FUNCTION accept_quote(quote_token TEXT)
 RETURNS JSON
 LANGUAGE plpgsql
@@ -51,11 +54,15 @@ BEGIN
   UPDATE quotes SET client_id = v_client_id WHERE id = v_quote.id;
 
   -- Sukurti objektą (planuojamą vykdyti)
+  -- Pavadinimas: object_name iš pasiūlymo, arba "Klientas - adresas"
   INSERT INTO projects (organization_id, client_id, name, address, status, budget)
   VALUES (
     v_quote.organization_id,
     v_client_id,
-    COALESCE(NULLIF(v_quote.client_name, ''), 'Klientas') || ' - ' || COALESCE(v_quote.address, ''),
+    COALESCE(
+      NULLIF(v_quote.object_name, ''),
+      COALESCE(NULLIF(v_quote.client_name, ''), 'Klientas') || ' - ' || COALESCE(v_quote.address, '')
+    ),
     COALESCE(v_quote.address, ''),
     'planning',
     COALESCE(v_quote.total, 0)

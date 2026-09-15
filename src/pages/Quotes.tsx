@@ -33,6 +33,7 @@ export function Quotes() {
   const [clientEmail, setClientEmail] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [objectName, setObjectName] = useState('')
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [newItemName, setNewItemName] = useState('')
@@ -59,6 +60,7 @@ export function Quotes() {
   const [editClientEmail, setEditClientEmail] = useState('')
   const [editClientPhone, setEditClientPhone] = useState('')
   const [editAddress, setEditAddress] = useState('')
+  const [editObjectName, setEditObjectName] = useState('')
   const [addItemSearch, setAddItemSearch] = useState('')
   const [showModalNewItem, setShowModalNewItem] = useState(false)
   const [modalNewItemName, setModalNewItemName] = useState('')
@@ -159,6 +161,7 @@ export function Quotes() {
     const quote = await createQuote.mutateAsync({
       client_id: null as any, // Bus užpildyta priėmus pasiūlymą
       address,
+      object_name: objectName.trim() || null,
       status: 'draft',
     })
 
@@ -229,6 +232,7 @@ export function Quotes() {
     setClientEmail('')
     setClientPhone('')
     setAddress('')
+    setObjectName('')
     setSelectedItems(new Set())
     setQuantities({})
     setSelectedWarehouse(new Set())
@@ -243,6 +247,7 @@ export function Quotes() {
     setEditClientEmail(quote.client_email || '')
     setEditClientPhone(quote.client_phone || '')
     setEditAddress(quote.address || '')
+    setEditObjectName(quote.object_name || '')
     setAddItemSearch('')
   }
 
@@ -278,6 +283,7 @@ export function Quotes() {
         client_email: editClientEmail.trim() || null,
         client_phone: editClientPhone.trim() || null,
         address: editAddress.trim(),
+        object_name: editObjectName.trim() || null,
       })
       setSelectedQuote({
         ...selectedQuote,
@@ -285,6 +291,7 @@ export function Quotes() {
         client_email: editClientEmail.trim() || null,
         client_phone: editClientPhone.trim() || null,
         address: editAddress.trim(),
+        object_name: editObjectName.trim() || null,
       })
     } catch (err) {
       alert(`Klaida atnaujinant pasiūlymą: ${(err as Error).message}`)
@@ -575,6 +582,18 @@ export function Quotes() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   placeholder="Įveskite adresą"
                   required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Objekto pavadinimas
+                </label>
+                <input
+                  type="text"
+                  value={objectName}
+                  onChange={(e) => setObjectName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="pvz. Namo renovacija"
                 />
               </div>
             </div>
@@ -971,6 +990,15 @@ export function Quotes() {
                       type="text"
                       value={editAddress}
                       onChange={(e) => setEditAddress(e.target.value)}
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Objekto pavadinimas</label>
+                    <input
+                      type="text"
+                      value={editObjectName}
+                      onChange={(e) => setEditObjectName(e.target.value)}
                       className="w-full mt-1 px-2 py-1 border border-gray-300 rounded text-sm"
                     />
                   </div>

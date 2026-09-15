@@ -18,6 +18,7 @@ export interface Quote {
   client_name: string | null
   client_email: string | null
   client_phone: string | null
+  object_name: string | null
   created_at: string
   updated_at: string
   clients?: {
