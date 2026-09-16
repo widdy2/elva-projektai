@@ -22,6 +22,7 @@ DECLARE
   v_client_id UUID;
   v_project_id UUID;
   v_item RECORD;
+  v_is_product BOOLEAN;
 BEGIN
   -- Rasti pasiūlymą pagal viešą tokeną
   SELECT * INTO v_quote FROM quotes WHERE public_token = quote_token;
@@ -74,21 +75,21 @@ BEGIN
   )
   RETURNING id INTO v_project_id;
 
-  -- Nukopijuoti pasiūlymo pozicijas į objekto darbus
+  -- Nukopijuoti pasiūlymo pozicijas: paslaugos → objekto darbai,
+  -- prekės (kainyno 'product' arba sandėlio) → objekto medžiagos
   FOR v_item IN SELECT * FROM quote_items WHERE quote_id = v_quote.id LOOP
-    INSERT INTO project_works (project_id, name, status, quantity, unit, work_price, material_price)
-    VALUES (
-      v_project_id,
-      v_item.name,
-      'pending',
-      COALESCE(v_item.quantity, 1),
-      COALESCE(v_item.unit, 'vnt'),
-      COALESCE(v_item.work_price, 0),
-      COALESCE(v_item.material_price, 0)
-    );
+    -- Nustatyti ar pozicija yra prekė
+    v_is_product := NULL;
+    IF v_item.price_item_id IS NOT NULL THEN
+      SELECT (item_type = 'product') INTO v_is_product
+      FROM price_items WHERE id = v_item.price_item_id;
+    END IF;
+    IF v_is_product IS NULL THEN
+      v_is_product := v_item.warehouse_item_id IS NOT NULL
+        OR COALESCE(v_item.work_price, 0) = 0;
+    END IF;
 
-    -- Sandėlio prekės → objekto medžiagos
-    IF v_item.warehouse_item_id IS NOT NULL THEN
+    IF v_is_product THEN
       INSERT INTO project_materials (project_id, warehouse_item_id, name, unit, planned_quantity, purchased_quantity, used_quantity, unit_price)
       VALUES (
         v_project_id,
@@ -98,6 +99,17 @@ BEGIN
         COALESCE(v_item.quantity, 1),
         COALESCE(v_item.quantity, 1),
         0,
+        COALESCE(v_item.material_price, 0)
+      );
+    ELSE
+      INSERT INTO project_works (project_id, name, status, quantity, unit, work_price, material_price)
+      VALUES (
+        v_project_id,
+        v_item.name,
+        'pending',
+        COALESCE(v_item.quantity, 1),
+        COALESCE(v_item.unit, 'vnt'),
+        COALESCE(v_item.work_price, 0),
         COALESCE(v_item.material_price, 0)
       );
     END IF;
