@@ -39,19 +39,24 @@ BEGIN
   SET status = 'accepted', accepted_at = now()
   WHERE id = v_quote.id;
 
-  -- Sukurti klientą su visa pasiūlyme esančia informacija
-  INSERT INTO clients (organization_id, name, email, phone, address)
-  VALUES (
-    v_quote.organization_id,
-    COALESCE(NULLIF(v_quote.client_name, ''), 'Klientas'),
-    NULLIF(v_quote.client_email, ''),
-    NULLIF(v_quote.client_phone, ''),
-    v_quote.address
-  )
-  RETURNING id INTO v_client_id;
+  -- Klientas: jei pasiūlymas jau susietas su esamu klientu — naudojame jį,
+  -- kitaip sukuriame naują su visa pasiūlyme esančia informacija
+  IF v_quote.client_id IS NOT NULL THEN
+    v_client_id := v_quote.client_id;
+  ELSE
+    INSERT INTO clients (organization_id, name, email, phone, address)
+    VALUES (
+      v_quote.organization_id,
+      COALESCE(NULLIF(v_quote.client_name, ''), 'Klientas'),
+      NULLIF(v_quote.client_email, ''),
+      NULLIF(v_quote.client_phone, ''),
+      v_quote.address
+    )
+    RETURNING id INTO v_client_id;
 
-  -- Susieti pasiūlymą su nauju klientu
-  UPDATE quotes SET client_id = v_client_id WHERE id = v_quote.id;
+    -- Susieti pasiūlymą su nauju klientu
+    UPDATE quotes SET client_id = v_client_id WHERE id = v_quote.id;
+  END IF;
 
   -- Sukurti objektą (planuojamą vykdyti)
   -- Pavadinimas: object_name iš pasiūlymo, arba "Klientas - adresas"
@@ -71,12 +76,13 @@ BEGIN
 
   -- Nukopijuoti pasiūlymo pozicijas į objekto darbus
   FOR v_item IN SELECT * FROM quote_items WHERE quote_id = v_quote.id LOOP
-    INSERT INTO project_works (project_id, name, status, quantity, work_price, material_price)
+    INSERT INTO project_works (project_id, name, status, quantity, unit, work_price, material_price)
     VALUES (
       v_project_id,
       v_item.name,
       'pending',
       COALESCE(v_item.quantity, 1),
+      COALESCE(v_item.unit, 'vnt'),
       COALESCE(v_item.work_price, 0),
       COALESCE(v_item.material_price, 0)
     );
@@ -88,7 +94,7 @@ BEGIN
         v_project_id,
         v_item.warehouse_item_id,
         v_item.name,
-        'vnt',
+        COALESCE(v_item.unit, 'vnt'),
         COALESCE(v_item.quantity, 1),
         COALESCE(v_item.quantity, 1),
         0,

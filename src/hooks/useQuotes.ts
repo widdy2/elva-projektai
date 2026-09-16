@@ -33,6 +33,7 @@ export interface QuoteItem {
   warehouse_item_id: string | null
   name: string
   quantity: number
+  unit?: string
   work_price: number
   material_price: number
   created_at: string

@@ -192,7 +192,7 @@ export function PublicQuote() {
                   {serviceItems.map((item: any) => (
                     <tr key={item.id} className="border-b">
                       <td className="py-2">{item.name}</td>
-                      <td className="text-right py-2">{item.quantity}</td>
+                      <td className="text-right py-2">{item.quantity} {item.unit || 'vnt'}</td>
                       <td className="text-right py-2">€{(item.work_price || 0).toFixed(2)}</td>
                       <td className="text-right py-2">€{((item.work_price || 0) * item.quantity).toFixed(2)}</td>
                     </tr>
@@ -222,7 +222,7 @@ export function PublicQuote() {
                   {productItems.map((item: any) => (
                     <tr key={item.id} className="border-b">
                       <td className="py-2">{item.name}</td>
-                      <td className="text-right py-2">{item.quantity}</td>
+                      <td className="text-right py-2">{item.quantity} {item.unit || 'vnt'}</td>
                       <td className="text-right py-2">€{(item.material_price || 0).toFixed(2)}</td>
                       <td className="text-right py-2">€{((item.material_price || 0) * item.quantity).toFixed(2)}</td>
                     </tr>

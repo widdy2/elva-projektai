@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuotes, useCreateQuote, useCreateQuoteItem, useUpdateQuote, useQuoteItems, useUpdateQuoteItem, useDeleteQuoteItem, useDeleteQuote, Quote, QuoteItem } from '../hooks/useQuotes'
 import { usePriceItems, useCreatePriceItem, useUpdatePriceItem } from '../hooks/usePricelist'
 import { useWarehouseItems, useUpdateWarehouseItem } from '../hooks/useMaterials'
+import { useClients } from '../hooks/useClients'
 import { useOrganizationDetails } from '../hooks/useOrganizationDetails'
 import { addOrgHeader } from '../lib/pdfHeader'
 import { supabase } from '../lib/supabase'
@@ -26,6 +27,13 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-gray-100 text-gray-800',
 }
 
+const unitOptions = [
+  { value: 'vnt', label: 'vnt.' },
+  { value: 'm', label: 'm' },
+  { value: 'kpl', label: 'kpl.' },
+  { value: 'val', label: 'val.' },
+]
+
 export function Quotes() {
   const [showForm, setShowForm] = useState(false)
   const [newItemForm, setNewItemForm] = useState<'service' | 'product' | null>(null)
@@ -34,15 +42,18 @@ export function Quotes() {
   const [clientPhone, setClientPhone] = useState('')
   const [address, setAddress] = useState('')
   const [objectName, setObjectName] = useState('')
+  const [selectedClientId, setSelectedClientId] = useState('')
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [newItemName, setNewItemName] = useState('')
   const [newItemPrice, setNewItemPrice] = useState('')
+  const [newItemUnit, setNewItemUnit] = useState('vnt')
   const [searchTerm, setSearchTerm] = useState('')
 
   const { data: quotes } = useQuotes()
   const { data: priceItems } = usePriceItems()
   const { data: warehouseItems } = useWarehouseItems()
+  const { data: clients } = useClients()
   const createQuote = useCreateQuote()
   const createQuoteItem = useCreateQuoteItem()
   const updateQuote = useUpdateQuote()
@@ -66,6 +77,7 @@ export function Quotes() {
   const [modalNewItemName, setModalNewItemName] = useState('')
   const [modalNewItemType, setModalNewItemType] = useState<'service' | 'product'>('service')
   const [modalNewItemPrice, setModalNewItemPrice] = useState('')
+  const [modalNewItemUnit, setModalNewItemUnit] = useState('vnt')
   const [sendingEmail, setSendingEmail] = useState(false)
 
   const { data: quoteItems } = useQuoteItems(selectedQuote?.id || '')
@@ -109,6 +121,7 @@ export function Quotes() {
       await createPriceItem.mutateAsync({
         name: newItemName,
         item_type: newItemForm,
+        unit: newItemUnit,
         labor_price: newItemForm === 'service' ? parseFloat(newItemPrice) : 0,
         material_price: newItemForm === 'product' ? parseFloat(newItemPrice) : 0,
         category_id: null as any,
@@ -116,6 +129,7 @@ export function Quotes() {
 
       setNewItemName('')
       setNewItemPrice('')
+      setNewItemUnit('vnt')
       setSearchTerm('')
       setNewItemForm(null)
     } catch (error) {
@@ -159,7 +173,7 @@ export function Quotes() {
     if (!clientName || !address) return
 
     const quote = await createQuote.mutateAsync({
-      client_id: null as any, // Bus užpildyta priėmus pasiūlymą
+      client_id: selectedClientId || null,
       address,
       object_name: objectName.trim() || null,
       status: 'draft',
@@ -188,6 +202,7 @@ export function Quotes() {
           warehouse_item_id: null,
           name: item.name,
           quantity,
+          unit: item.unit || 'vnt',
           work_price: item.labor_price,
           material_price: item.material_price,
         })
@@ -206,6 +221,7 @@ export function Quotes() {
           warehouse_item_id: itemId,
           name: item.name,
           quantity,
+          unit: item.unit || 'vnt',
           work_price: 0,
           material_price: item.unit_price,
         })
@@ -233,6 +249,7 @@ export function Quotes() {
     setClientPhone('')
     setAddress('')
     setObjectName('')
+    setSelectedClientId('')
     setSelectedItems(new Set())
     setQuantities({})
     setSelectedWarehouse(new Set())
@@ -298,7 +315,7 @@ export function Quotes() {
     }
   }
 
-  const handleUpdateItem = async (itemId: string, field: 'quantity' | 'work_price' | 'material_price' | 'name', value: number | string) => {
+  const handleUpdateItem = async (itemId: string, field: 'quantity' | 'work_price' | 'material_price' | 'name' | 'unit', value: number | string) => {
     if (!selectedQuote) return
     try {
       await updateQuoteItem.mutateAsync({ id: itemId, [field]: value })
@@ -381,6 +398,7 @@ export function Quotes() {
       body.push([
         nr.toString(),
         i.name,
+        i.unit || 'vnt',
         i.quantity.toString(),
         price.toFixed(2),
         (price * i.quantity).toFixed(2),
@@ -388,26 +406,27 @@ export function Quotes() {
     }
 
     if (services.length > 0) {
-      body.push([{ content: 'Paslaugos', colSpan: 5, styles: { fontStyle: 'bold', fillColor: [230, 230, 230] } }])
+      body.push([{ content: 'Paslaugos', colSpan: 6, styles: { fontStyle: 'bold', fillColor: [230, 230, 230] } }])
       services.forEach(pushRow)
     }
     if (products.length > 0) {
-      body.push([{ content: 'Prekės', colSpan: 5, styles: { fontStyle: 'bold', fillColor: [230, 230, 230] } }])
+      body.push([{ content: 'Prekės', colSpan: 6, styles: { fontStyle: 'bold', fillColor: [230, 230, 230] } }])
       products.forEach(pushRow)
     }
 
     autoTable(doc, {
       startY: tableY,
-      head: [['Nr.', 'Pavadinimas', 'Kiekis', 'Kaina', 'Suma']],
+      head: [['Nr.', 'Pavadinimas', 'vnt./m.', 'Kiekis', 'Kaina', 'Suma']],
       body,
       styles: { fontSize: 9, font: 'DejaVuSans', overflow: 'linebreak', cellPadding: 1.5 },
       headStyles: { fillColor: [66, 66, 66], font: 'DejaVuSans', fontStyle: 'bold' },
       columnStyles: {
         0: { cellWidth: 10 },
         1: { cellWidth: 'auto' },
-        2: { cellWidth: 16, halign: 'right' },
-        3: { cellWidth: 22, halign: 'right' },
-        4: { cellWidth: 22, halign: 'right' },
+        2: { cellWidth: 14 },
+        3: { cellWidth: 14, halign: 'right' },
+        4: { cellWidth: 20, halign: 'right' },
+        5: { cellWidth: 20, halign: 'right' },
       },
     })
 
@@ -461,7 +480,7 @@ export function Quotes() {
     }
   }
 
-  const handleAddItemToQuote = async (item: { id: string; name: string; work_price: number; material_price: number; warehouse_item_id?: string | null; price_item_id?: string | null }) => {
+  const handleAddItemToQuote = async (item: { id: string; name: string; work_price: number; material_price: number; warehouse_item_id?: string | null; price_item_id?: string | null; unit?: string }) => {
     if (!selectedQuote) return
     try {
       await createQuoteItem.mutateAsync({
@@ -470,6 +489,7 @@ export function Quotes() {
         warehouse_item_id: item.warehouse_item_id ?? null,
         name: item.name,
         quantity: 1,
+        unit: item.unit || 'vnt',
         work_price: item.work_price,
         material_price: item.material_price,
       })
@@ -486,6 +506,7 @@ export function Quotes() {
       const newItem = await createPriceItem.mutateAsync({
         name: modalNewItemName.trim(),
         item_type: modalNewItemType,
+        unit: modalNewItemUnit,
         labor_price: modalNewItemType === 'service' ? parseFloat(modalNewItemPrice) : 0,
         material_price: modalNewItemType === 'product' ? parseFloat(modalNewItemPrice) : 0,
         category_id: null as any,
@@ -496,10 +517,12 @@ export function Quotes() {
         work_price: newItem.labor_price || 0,
         material_price: newItem.material_price || 0,
         price_item_id: newItem.id,
+        unit: modalNewItemUnit,
       })
       setModalNewItemName('')
       setModalNewItemType('service')
       setModalNewItemPrice('')
+      setModalNewItemUnit('vnt')
       setShowModalNewItem(false)
     } catch (err) {
       alert(`Klaida kuriant poziciją: ${(err as Error).message}`)
@@ -533,6 +556,30 @@ export function Quotes() {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-700 mb-4">Naujas pasiūlymas</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Esamas klientas
+              </label>
+              <select
+                value={selectedClientId}
+                onChange={(e) => {
+                  const id = e.target.value
+                  setSelectedClientId(id)
+                  const c = clients?.find(cl => cl.id === id)
+                  if (c) {
+                    setClientName(c.name)
+                    setClientEmail(c.email || '')
+                    setClientPhone(c.phone || '')
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              >
+                <option value="">— Naujas klientas —</option>
+                {clients?.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -657,6 +704,7 @@ export function Quotes() {
                         className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                         disabled={!selectedItems.has(item.id)}
                       />
+                      <span className="text-xs text-gray-400 w-8">{item.unit || 'vnt'}</span>
                       <span className="text-sm text-gray-500">
                         €{item.labor_price?.toFixed(2) || '0.00'}
                       </span>
@@ -706,6 +754,7 @@ export function Quotes() {
                         className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                         disabled={!selectedItems.has(item.id)}
                       />
+                      <span className="text-xs text-gray-400 w-8">{item.unit || 'vnt'}</span>
                       <span className="text-sm text-gray-500">
                         €{item.material_price?.toFixed(2) || '0.00'}
                       </span>
@@ -823,19 +872,35 @@ export function Quotes() {
                 required
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {newItemForm === 'service' ? 'Darbo kaina' : 'Prekės kaina'}
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={newItemPrice}
-                onChange={(e) => setNewItemPrice(e.target.value)}
-                placeholder="Įveskite kainą"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {newItemForm === 'service' ? 'Darbo kaina' : 'Prekės kaina'}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newItemPrice}
+                  onChange={(e) => setNewItemPrice(e.target.value)}
+                  placeholder="Įveskite kainą"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mato vienetas
+                </label>
+                <select
+                  value={newItemUnit}
+                  onChange={(e) => setNewItemUnit(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  {unitOptions.map(u => (
+                    <option key={u.value} value={u.value}>{u.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex space-x-2">
               <button
@@ -1042,6 +1107,19 @@ export function Quotes() {
                       />
                     </td>
                   )
+                  const unitCell = (item: QuoteItem) => (
+                    <td className="py-1.5">
+                      <select
+                        value={item.unit || 'vnt'}
+                        onChange={(e) => handleUpdateItem(item.id, 'unit', e.target.value)}
+                        className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                      >
+                        {unitOptions.map(u => (
+                          <option key={u.value} value={u.value}>{u.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                  )
                   const deleteCell = (item: QuoteItem) => (
                     <td className="py-1.5 text-right">
                       <button
@@ -1063,6 +1141,7 @@ export function Quotes() {
                             <tr className="border-b text-left text-xs text-gray-500">
                               <th className="py-1">Pavadinimas</th>
                               <th className="py-1 w-20">Kiekis</th>
+                              <th className="py-1 w-16">Vnt.</th>
                               <th className="py-1 w-24">Darbas €</th>
                               <th className="py-1 w-24">Medž. €</th>
                               <th className="py-1 w-20 text-right">Suma €</th>
@@ -1084,6 +1163,7 @@ export function Quotes() {
                                   />
                                 </td>
                                 {qtyCell(item)}
+                                {unitCell(item)}
                                 <td className="py-1.5">
                                   <input
                                     type="number"
@@ -1131,6 +1211,7 @@ export function Quotes() {
                             <tr className="border-b text-left text-xs text-gray-500">
                               <th className="py-1">Pavadinimas</th>
                               <th className="py-1 w-20">Kiekis</th>
+                              <th className="py-1 w-16">Vnt.</th>
                               <th className="py-1 w-24">Kaina €</th>
                               <th className="py-1 w-20 text-right">Suma €</th>
                               <th className="py-1 w-8"></th>
@@ -1151,6 +1232,7 @@ export function Quotes() {
                                   />
                                 </td>
                                 {qtyCell(item)}
+                                {unitCell(item)}
                                 <td className="py-1.5">
                                   <input
                                     type="number"
@@ -1228,6 +1310,15 @@ export function Quotes() {
                           className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
                           required
                         />
+                        <select
+                          value={modalNewItemUnit}
+                          onChange={(e) => setModalNewItemUnit(e.target.value)}
+                          className="w-20 px-1 py-1 border border-gray-300 rounded text-sm"
+                        >
+                          {unitOptions.map(u => (
+                            <option key={u.value} value={u.value}>{u.label}</option>
+                          ))}
+                        </select>
                       </div>
                       <div className="flex space-x-2">
                         <button
@@ -1259,6 +1350,7 @@ export function Quotes() {
                               work_price: item.labor_price || 0,
                               material_price: item.material_price || 0,
                               price_item_id: item.id,
+                              unit: item.unit || 'vnt',
                             })
                             setAddItemSearch('')
                           }}
@@ -1280,6 +1372,7 @@ export function Quotes() {
                               work_price: 0,
                               material_price: item.unit_price,
                               warehouse_item_id: item.id,
+                              unit: item.unit || 'vnt',
                             })
                             setAddItemSearch('')
                           }}

@@ -17,14 +17,16 @@ export function Pricelist() {
   const [editLaborPrice, setEditLaborPrice] = useState('')
   const [editMaterialPrice, setEditMaterialPrice] = useState('')
   const [editType, setEditType] = useState<'service' | 'product'>('service')
+  const [editUnit, setEditUnit] = useState('vnt')
   const [searchTerm, setSearchTerm] = useState('')
 
-  const startEdit = (item: { id: string; name: string; labor_price: number; material_price: number; item_type?: 'service' | 'product' }) => {
+  const startEdit = (item: { id: string; name: string; labor_price: number; material_price: number; item_type?: 'service' | 'product'; unit?: string }) => {
     setEditingId(item.id)
     setEditName(item.name)
     setEditLaborPrice(item.labor_price?.toString() || '0')
     setEditMaterialPrice(item.material_price?.toString() || '0')
     setEditType(item.item_type || 'service')
+    setEditUnit(item.unit || 'vnt')
   }
 
   const handleSaveEdit = async () => {
@@ -36,6 +38,7 @@ export function Pricelist() {
         labor_price: parseFloat(editLaborPrice) || 0,
         material_price: parseFloat(editMaterialPrice) || 0,
         item_type: editType,
+        unit: editUnit,
       })
       setEditingId(null)
     } catch (err) {
@@ -118,6 +121,18 @@ export function Pricelist() {
           </td>
           <td className="px-6 py-4 whitespace-nowrap">
             <select
+              value={editUnit}
+              onChange={(e) => setEditUnit(e.target.value)}
+              className="px-2 py-1 border border-gray-300 rounded text-sm"
+            >
+              <option value="vnt">vnt.</option>
+              <option value="m">m</option>
+              <option value="kpl">kpl.</option>
+              <option value="val">val.</option>
+            </select>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <select
               value={editType}
               onChange={(e) => setEditType(e.target.value as 'service' | 'product')}
               className="px-2 py-1 border border-gray-300 rounded text-sm"
@@ -155,6 +170,9 @@ export function Pricelist() {
           </td>
           <td className="px-6 py-4 whitespace-nowrap">
             <div className="text-sm text-gray-900">{item.material_price?.toFixed(2) || '0.00'}</div>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <div className="text-sm text-gray-500">{item.unit || 'vnt'}</div>
           </td>
           <td className="px-6 py-4 whitespace-nowrap">
             <div className="text-sm text-gray-500">
@@ -195,6 +213,9 @@ export function Pricelist() {
         </th>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Medžiagos kaina (€)
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Vnt.
         </th>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Tipas

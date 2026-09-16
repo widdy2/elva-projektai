@@ -18,6 +18,7 @@ export interface PriceItem {
   labor_price: number
   material_price: number
   item_type?: 'service' | 'product'
+  unit?: string
   created_at: string
   updated_at: string
 }
