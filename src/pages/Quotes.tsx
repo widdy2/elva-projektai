@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useQuotes, useCreateQuote, useCreateQuoteItem, useUpdateQuote, useQuoteItems, useUpdateQuoteItem, useDeleteQuoteItem, useDeleteQuote, Quote, QuoteItem } from '../hooks/useQuotes'
 import { usePriceItems, useCreatePriceItem, useUpdatePriceItem } from '../hooks/usePricelist'
 import { useWarehouseItems, useUpdateWarehouseItem } from '../hooks/useMaterials'
@@ -50,6 +51,7 @@ export function Quotes() {
   const [newItemUnit, setNewItemUnit] = useState('vnt')
   const [searchTerm, setSearchTerm] = useState('')
 
+  const queryClient = useQueryClient()
   const { data: quotes } = useQuotes()
   const { data: priceItems } = usePriceItems()
   const { data: warehouseItems } = useWarehouseItems()
@@ -541,6 +543,25 @@ export function Quotes() {
     }
   }
 
+  // Statuso keitimas — "Priimtas" kviečia accept_quote RPC (sukuria klientą ir objektą)
+  const handleStatusChange = async (quote: Quote, newStatus: Quote['status']) => {
+    if (newStatus === 'accepted' && quote.public_token) {
+      try {
+        const { data, error } = await supabase.rpc('accept_quote', { p_public_token: quote.public_token })
+        if (error) throw error
+        if (data?.error) throw new Error(data.error)
+        queryClient.invalidateQueries({ queryKey: ['quotes'] })
+        queryClient.invalidateQueries({ queryKey: ['projects'] })
+        queryClient.invalidateQueries({ queryKey: ['clients'] })
+        setSelectedQuote(prev => prev?.id === quote.id ? { ...prev, status: 'accepted' } : prev)
+      } catch (err) {
+        alert(`Klaida priimant pasiūlymą: ${(err as Error).message}`)
+      }
+      return
+    }
+    updateQuote.mutate({ id: quote.id, status: newStatus })
+  }
+
   const handleDeleteQuote = async () => {
     if (!selectedQuote) return
     if (!confirm('Ar tikrai ištrinti šį pasiūlymą?')) return
@@ -981,7 +1002,7 @@ export function Quotes() {
                 <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                   <select
                     value={quote.status}
-                    onChange={(e) => updateQuote.mutate({ id: quote.id, status: e.target.value as Quote['status'] })}
+                    onChange={(e) => handleStatusChange(quote, e.target.value as Quote['status'])}
                     className="text-sm border border-gray-300 rounded px-2 py-1"
                   >
                     <option value="draft">Juodraštis</option>

@@ -29,8 +29,8 @@ BEGIN
     RAISE EXCEPTION 'Pasiūlymas nerastas';
   END IF;
 
-  -- Jei jau priimtas — nieko nedarome (idempotent)
-  IF v_quote.status = 'accepted' THEN
+  -- Jei jau buvo priimtas (objektas sukurtas) — nieko nedarome (idempotent)
+  IF v_quote.accepted_at IS NOT NULL THEN
     RETURN json_build_object('success', true, 'already_accepted', true);
   END IF;
 
