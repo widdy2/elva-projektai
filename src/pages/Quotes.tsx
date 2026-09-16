@@ -203,10 +203,10 @@ export function Quotes() {
           name: item.name,
           quantity,
           unit: item.unit || 'vnt',
-          work_price: item.labor_price,
+          work_price: item.item_type === 'product' ? 0 : item.labor_price,
           material_price: item.material_price,
         })
-        totalWork += (item.labor_price || 0) * quantity
+        if (item.item_type !== 'product') totalWork += (item.labor_price || 0) * quantity
         totalMaterial += (item.material_price || 0) * quantity
       }
     }
@@ -439,7 +439,7 @@ export function Quotes() {
     }
 
     const servicesSum = services.reduce((s, i) => s + (i.work_price + i.material_price) * i.quantity, 0)
-    const productsSum = products.reduce((s, i) => s + (i.work_price + i.material_price) * i.quantity, 0)
+    const productsSum = products.reduce((s, i) => s + i.material_price * i.quantity, 0)
     const subtotal = servicesSum + productsSum
     const vat = subtotal * 0.21
 
@@ -1090,7 +1090,7 @@ export function Quotes() {
                   const services = (quoteItems || []).filter(i => !isProduct(i))
                   const products = (quoteItems || []).filter(isProduct)
                   const servicesSum = services.reduce((s, i) => s + (i.work_price + i.material_price) * i.quantity, 0)
-                  const productsSum = products.reduce((s, i) => s + (i.work_price + i.material_price) * i.quantity, 0)
+                  const productsSum = products.reduce((s, i) => s + i.material_price * i.quantity, 0)
 
                   const qtyCell = (item: QuoteItem) => (
                     <td className="py-1.5">
@@ -1247,7 +1247,7 @@ export function Quotes() {
                                   />
                                 </td>
                                 <td className="py-1.5 text-right">
-                                  {((item.work_price + item.material_price) * item.quantity).toFixed(2)}
+                                  {(item.material_price * item.quantity).toFixed(2)}
                                 </td>
                                 {deleteCell(item)}
                               </tr>
@@ -1347,7 +1347,7 @@ export function Quotes() {
                             handleAddItemToQuote({
                               id: item.id,
                               name: item.name,
-                              work_price: item.labor_price || 0,
+                              work_price: item.item_type === 'product' ? 0 : (item.labor_price || 0),
                               material_price: item.material_price || 0,
                               price_item_id: item.id,
                               unit: item.unit || 'vnt',
