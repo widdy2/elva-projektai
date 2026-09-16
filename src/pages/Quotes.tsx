@@ -147,8 +147,11 @@ export function Quotes() {
         const quantity = quantities[itemId] || 1
         const laborPrice = typeof item.labor_price === 'number' ? item.labor_price : parseFloat(item.labor_price || '0')
         const materialPrice = typeof item.material_price === 'number' ? item.material_price : parseFloat(item.material_price || '0')
-        totalWork += laborPrice * quantity
-        totalMaterial += materialPrice * quantity
+        if (item.item_type === 'product') {
+          totalMaterial += materialPrice * quantity
+        } else {
+          totalWork += laborPrice * quantity
+        }
       }
     }
 
@@ -204,10 +207,13 @@ export function Quotes() {
           quantity,
           unit: item.unit || 'vnt',
           work_price: item.item_type === 'product' ? 0 : item.labor_price,
-          material_price: item.material_price,
+          material_price: item.item_type === 'product' ? item.material_price : 0,
         })
-        if (item.item_type !== 'product') totalWork += (item.labor_price || 0) * quantity
-        totalMaterial += (item.material_price || 0) * quantity
+        if (item.item_type === 'product') {
+          totalMaterial += (item.material_price || 0) * quantity
+        } else {
+          totalWork += (item.labor_price || 0) * quantity
+        }
       }
     }
 
@@ -277,8 +283,14 @@ export function Quotes() {
     let totalWork = 0
     let totalMaterial = 0
     for (const item of items || []) {
-      totalWork += (item.work_price || 0) * item.quantity
-      totalMaterial += (item.material_price || 0) * item.quantity
+      const isProduct = item.warehouse_item_id != null ||
+        priceItems?.find(p => p.id === item.price_item_id)?.item_type === 'product' ||
+        (item.price_item_id == null && item.work_price === 0)
+      if (isProduct) {
+        totalMaterial += (item.material_price || 0) * item.quantity
+      } else {
+        totalWork += (item.work_price || 0) * item.quantity
+      }
     }
     const totalVat = (totalWork + totalMaterial) * 0.21
     const total = totalWork + totalMaterial + totalVat
@@ -394,7 +406,7 @@ export function Quotes() {
     let nr = 0
     const pushRow = (i: QuoteItem) => {
       nr++
-      const price = isProduct(i) ? i.material_price : i.work_price + i.material_price
+      const price = isProduct(i) ? i.material_price : i.work_price
       body.push([
         nr.toString(),
         i.name,
@@ -438,7 +450,7 @@ export function Quotes() {
       finalY = 20
     }
 
-    const servicesSum = services.reduce((s, i) => s + (i.work_price + i.material_price) * i.quantity, 0)
+    const servicesSum = services.reduce((s, i) => s + i.work_price * i.quantity, 0)
     const productsSum = products.reduce((s, i) => s + i.material_price * i.quantity, 0)
     const subtotal = servicesSum + productsSum
     const vat = subtotal * 0.21
@@ -1089,7 +1101,7 @@ export function Quotes() {
                   }
                   const services = (quoteItems || []).filter(i => !isProduct(i))
                   const products = (quoteItems || []).filter(isProduct)
-                  const servicesSum = services.reduce((s, i) => s + (i.work_price + i.material_price) * i.quantity, 0)
+                  const servicesSum = services.reduce((s, i) => s + i.work_price * i.quantity, 0)
                   const productsSum = products.reduce((s, i) => s + i.material_price * i.quantity, 0)
 
                   const qtyCell = (item: QuoteItem) => (
@@ -1143,7 +1155,6 @@ export function Quotes() {
                               <th className="py-1 w-20">Kiekis</th>
                               <th className="py-1 w-16">Vnt.</th>
                               <th className="py-1 w-24">Darbas €</th>
-                              <th className="py-1 w-24">Medž. €</th>
                               <th className="py-1 w-20 text-right">Suma €</th>
                               <th className="py-1 w-8"></th>
                             </tr>
@@ -1177,21 +1188,8 @@ export function Quotes() {
                                     className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
                                   />
                                 </td>
-                                <td className="py-1.5">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    defaultValue={item.material_price}
-                                    onBlur={(e) => {
-                                      const val = parseFloat(e.target.value) || 0
-                                      if (val !== item.material_price) handleUpdateItem(item.id, 'material_price', val)
-                                    }}
-                                    className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
-                                  />
-                                </td>
                                 <td className="py-1.5 text-right">
-                                  {((item.work_price + item.material_price) * item.quantity).toFixed(2)}
+                                  {(item.work_price * item.quantity).toFixed(2)}
                                 </td>
                                 {deleteCell(item)}
                               </tr>
@@ -1348,7 +1346,7 @@ export function Quotes() {
                               id: item.id,
                               name: item.name,
                               work_price: item.item_type === 'product' ? 0 : (item.labor_price || 0),
-                              material_price: item.material_price || 0,
+                              material_price: item.item_type === 'product' ? (item.material_price || 0) : 0,
                               price_item_id: item.id,
                               unit: item.unit || 'vnt',
                             })
