@@ -547,7 +547,7 @@ export function Quotes() {
   const handleStatusChange = async (quote: Quote, newStatus: Quote['status']) => {
     if (newStatus === 'accepted' && quote.public_token) {
       try {
-        const { data, error } = await supabase.rpc('accept_quote', { p_public_token: quote.public_token })
+        const { data, error } = await supabase.rpc('accept_quote', { quote_token: quote.public_token })
         if (error) throw error
         if (data?.error) throw new Error(data.error)
         queryClient.invalidateQueries({ queryKey: ['quotes'] })
