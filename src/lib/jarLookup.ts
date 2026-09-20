@@ -25,15 +25,20 @@ export async function searchJarCompanies(query: string): Promise<JarCompany[]> {
   }
 }
 
-// Pilnas registruotos buveinės adresas pagal JuridinisAsmuo._id
-export async function fetchJarAddress(jaId: string): Promise<string | null> {
+export interface JarDetails {
+  address: string | null
+  vat_code: string | null
+}
+
+// Registruota buveinė + PVM mokėtojo kodas pagal JuridinisAsmuo._id ir ja_kodas
+export async function fetchJarDetails(jaId: string, jaKodas: number): Promise<JarDetails> {
   try {
     const { data, error } = await supabase.functions.invoke('jar-lookup', {
-      body: { action: 'address', ja_id: jaId },
+      body: { action: 'address', ja_id: jaId, ja_kodas: jaKodas },
     })
-    if (error) return null
-    return data?.address || null
+    if (error) return { address: null, vat_code: null }
+    return { address: data?.address || null, vat_code: data?.vat_code || null }
   } catch {
-    return null
+    return { address: null, vat_code: null }
   }
 }

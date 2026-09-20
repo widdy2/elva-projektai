@@ -86,13 +86,29 @@ async function fetchAddress(jaId: string): Promise<string | null> {
   return address || null
 }
 
+// PVM mokėtojo kodas iš VMI mokesčių mokėtojų registro pagal įmonės kodą.
+// Grąžina pvz. "LT100009579210" arba null jei įmonė nėra PVM mokėtoja.
+async function fetchVatCode(jaKodas: number): Promise<string | null> {
+  const data = await fetchJson(
+    `${API}/datasets/gov/vmi/mm_registras/MokesciuMoketojas?ja_kodas=${jaKodas}&limit(20)`
+  )
+  const rows = data?._data || []
+  // Aktyvus PVM mokėtojas: turi kodą ir nėra išregistruotas
+  const active = rows.find(
+    (r: { pvm_kodas?: string; pvm_isregistruota?: string | null }) =>
+      r.pvm_kodas && !r.pvm_isregistruota
+  )
+  if (!active) return null
+  return `${active.pvm_kodas_pref || 'LT'}${active.pvm_kodas}`
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { action, query, ja_id } = await req.json()
+    const { action, query, ja_id, ja_kodas } = await req.json()
 
     if (action === 'search') {
       const companies = await searchCompanies(query || '')
@@ -102,8 +118,11 @@ serve(async (req) => {
     }
 
     if (action === 'address') {
-      const address = await fetchAddress(ja_id || '')
-      return new Response(JSON.stringify({ address }), {
+      const [address, vat_code] = await Promise.all([
+        fetchAddress(ja_id || ''),
+        ja_kodas ? fetchVatCode(ja_kodas) : Promise.resolve(null),
+      ])
+      return new Response(JSON.stringify({ address, vat_code }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }

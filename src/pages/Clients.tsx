@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient, Client } from '../hooks/useClients'
 import { useProjects } from '../hooks/useProjects'
 import { useNavigate } from 'react-router-dom'
-import { searchJarCompanies, fetchJarAddress, JarCompany } from '../lib/jarLookup'
+import { searchJarCompanies, fetchJarDetails, JarCompany } from '../lib/jarLookup'
 
 export function Clients() {
   const { data: clients, isLoading, error } = useClients()
@@ -93,8 +93,9 @@ export function Clients() {
     setNewCode(String(company.ja_kodas))
     setJarLoadingAddress(true)
     try {
-      const address = await fetchJarAddress(company._id)
-      if (address) setNewAddress(address)
+      const details = await fetchJarDetails(company._id, company.ja_kodas)
+      if (details.address) setNewAddress(details.address)
+      if (details.vat_code) setNewVatCode(details.vat_code)
     } finally {
       setJarLoadingAddress(false)
     }
@@ -270,7 +271,7 @@ export function Clients() {
                     className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"
                   />
                   {jarLoadingAddress && (
-                    <p className="text-xs text-gray-400 mt-1">Gaunamas adresas iš registro...</p>
+                    <p className="text-xs text-gray-400 mt-1">Gaunami duomenys iš registro...</p>
                   )}
                 </div>
                 <div>
