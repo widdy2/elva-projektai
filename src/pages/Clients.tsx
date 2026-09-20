@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient, Client } from '../hooks/useClients'
 import { useProjects } from '../hooks/useProjects'
 import { useNavigate } from 'react-router-dom'
+import { searchJarCompanies, fetchJarAddress, JarCompany } from '../lib/jarLookup'
 
 export function Clients() {
   const { data: clients, isLoading, error } = useClients()
@@ -26,6 +27,13 @@ export function Clients() {
   const [editAddress, setEditAddress] = useState('')
   const [editCode, setEditCode] = useState('')
   const [editVatCode, setEditVatCode] = useState('')
+
+  // JAR (juridinių asmenų registro) autocomplete
+  const [jarSuggestions, setJarSuggestions] = useState<JarCompany[]>([])
+  const [jarSearching, setJarSearching] = useState(false)
+  const [jarLoadingAddress, setJarLoadingAddress] = useState(false)
+  const jarTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const jarSelected = useRef(false)
 
   const clientProjects = projects?.filter(p => p.client_id === selectedClient?.id) || []
 
@@ -59,6 +67,39 @@ export function Clients() {
     }
   }
 
+  const handleNewNameChange = (value: string) => {
+    setNewName(value)
+    jarSelected.current = false
+    if (jarTimer.current) clearTimeout(jarTimer.current)
+    if (value.trim().length < 3) {
+      setJarSuggestions([])
+      return
+    }
+    jarTimer.current = setTimeout(async () => {
+      setJarSearching(true)
+      try {
+        const results = await searchJarCompanies(value)
+        if (!jarSelected.current) setJarSuggestions(results)
+      } finally {
+        setJarSearching(false)
+      }
+    }, 400)
+  }
+
+  const handleSelectJarCompany = async (company: JarCompany) => {
+    jarSelected.current = true
+    setJarSuggestions([])
+    setNewName(company.ja_pavadinimas)
+    setNewCode(String(company.ja_kodas))
+    setJarLoadingAddress(true)
+    try {
+      const address = await fetchJarAddress(company._id)
+      if (address) setNewAddress(address)
+    } finally {
+      setJarLoadingAddress(false)
+    }
+  }
+
   const handleCreate = async () => {
     if (!newName.trim()) return
     try {
@@ -77,6 +118,7 @@ export function Clients() {
       setNewAddress('')
       setNewCode('')
       setNewVatCode('')
+      setJarSuggestions([])
     } catch (err) {
       alert(`Klaida kuriant klientą: ${(err as Error).message}`)
     }
@@ -171,15 +213,35 @@ export function Clients() {
               </div>
 
               <div className="space-y-3 mb-6">
-                <div>
+                <div className="relative">
                   <label className="text-xs text-gray-500 uppercase">Vardas / Pavadinimas *</label>
                   <input
                     type="text"
                     value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
+                    onChange={(e) => handleNewNameChange(e.target.value)}
+                    onBlur={() => setTimeout(() => setJarSuggestions([]), 150)}
                     className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                    placeholder="Pradėkite vesti įmonės pavadinimą..."
                     autoFocus
                   />
+                  {jarSearching && (
+                    <p className="text-xs text-gray-400 mt-1">Ieškoma registre...</p>
+                  )}
+                  {jarSuggestions.length > 0 && (
+                    <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-y-auto">
+                      {jarSuggestions.map((c) => (
+                        <button
+                          key={c._id}
+                          type="button"
+                          onClick={() => handleSelectJarCompany(c)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b border-gray-100 last:border-0"
+                        >
+                          <span className="font-medium">{c.ja_pavadinimas}</span>
+                          <span className="text-gray-400 text-xs ml-2">{c.ja_kodas}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 uppercase">El. paštas</label>
@@ -207,6 +269,9 @@ export function Clients() {
                     onChange={(e) => setNewAddress(e.target.value)}
                     className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"
                   />
+                  {jarLoadingAddress && (
+                    <p className="text-xs text-gray-400 mt-1">Gaunamas adresas iš registro...</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 uppercase">Įmonės kodas</label>
