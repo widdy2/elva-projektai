@@ -53,6 +53,8 @@ export function ProjectDetail() {
   const [newMaterialUnit, setNewMaterialUnit] = useState('vnt')
   const [newMaterialQty, setNewMaterialQty] = useState('')
   const [newMaterialPrice, setNewMaterialPrice] = useState('')
+  const [priceAdjustPct, setPriceAdjustPct] = useState('')
+  const [adjustingPrices, setAdjustingPrices] = useState(false)
 
   // Laikmatis ir ataskaitos modalas
   const [now, setNow] = useState(Date.now())
@@ -366,6 +368,28 @@ export function ProjectDetail() {
         unit_price: item.unit_price,
         stock_deducted: false,
       })
+    }
+  }
+
+  // Masinis kainų korektavimas — pritaiko ±% visoms objekto medžiagoms
+  const handleAdjustMaterialPrices = async () => {
+    const pct = parseFloat(priceAdjustPct)
+    if (isNaN(pct) || pct === 0 || !materials?.length) return
+    if (!confirm(`Pakeisti visas ${materials.length} medžiagų kainas ${pct > 0 ? '+' : ''}${pct}%?`)) return
+    setAdjustingPrices(true)
+    try {
+      const factor = 1 + pct / 100
+      for (const m of materials) {
+        const newPrice = Math.round(m.unit_price * factor * 100) / 100
+        if (newPrice !== m.unit_price) {
+          await updateMaterial.mutateAsync({ id: m.id, unit_price: newPrice })
+        }
+      }
+      setPriceAdjustPct('')
+    } catch (err) {
+      alert(`Klaida keičiant kainas: ${(err as Error).message}`)
+    } finally {
+      setAdjustingPrices(false)
     }
   }
 
@@ -954,11 +978,30 @@ export function ProjectDetail() {
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-semibold text-gray-900">
             Medžiagos ({materials?.length || 0})
           </h3>
-          <PdfImport onImport={handleMaterialPdfImport} />
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              step="1"
+              value={priceAdjustPct}
+              onChange={(e) => setPriceAdjustPct(e.target.value)}
+              placeholder="±%"
+              title="Kainų korekcija procentais (pvz. 15 arba -10)"
+              className="w-20 px-2 py-2 border border-gray-300 rounded-md text-sm"
+            />
+            <button
+              onClick={handleAdjustMaterialPrices}
+              disabled={adjustingPrices || !priceAdjustPct || !materials?.length}
+              className="px-3 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 text-sm disabled:opacity-50"
+              title="Pritaikyti procentą visoms medžiagų kainoms"
+            >
+              {adjustingPrices ? 'Keičiama...' : 'Pritaikyti %'}
+            </button>
+            <PdfImport onImport={handleMaterialPdfImport} />
+          </div>
         </div>
 
         <form onSubmit={handleAddMaterial} className="flex gap-2 mb-4 flex-wrap">
@@ -1077,7 +1120,22 @@ export function ProjectDetail() {
                           {remaining.toFixed(2)} {m.unit}
                         </span>
                       </td>
-                      <td className="py-2 pr-4 text-gray-700">€{m.unit_price.toFixed(2)}</td>
+                      <td className="py-2 pr-4">
+                        <input
+                          key={`${m.id}-${m.unit_price}`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          defaultValue={m.unit_price}
+                          onBlur={(e) => {
+                            const val = parseFloat(e.target.value) || 0
+                            if (val !== m.unit_price) {
+                              updateMaterial.mutate({ id: m.id, unit_price: val })
+                            }
+                          }}
+                          className="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs"
+                        />
+                      </td>
                       <td className="py-2 pr-4 font-medium text-gray-900">€{total.toFixed(2)}</td>
                       <td className="py-2">
                         <button
