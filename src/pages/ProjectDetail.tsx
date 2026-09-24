@@ -149,8 +149,8 @@ export function ProjectDetail() {
         name: m.name,
         quantity: m.used_quantity,
         unit: m.unit,
-        unit_price: m.unit_price,
-        total: m.used_quantity * m.unit_price,
+        unit_price: m.sale_price ?? m.unit_price,
+        total: m.used_quantity * (m.sale_price ?? m.unit_price),
         item_type: 'material' as const,
       })),
     ]
@@ -264,7 +264,7 @@ export function ProjectDetail() {
           m.name,
           (m.used_quantity > 0 ? m.used_quantity : m.purchased_quantity).toFixed(2),
           m.unit,
-          ((m.used_quantity > 0 ? m.used_quantity : m.purchased_quantity) * m.unit_price).toFixed(2),
+          ((m.used_quantity > 0 ? m.used_quantity : m.purchased_quantity) * (m.sale_price ?? m.unit_price)).toFixed(2),
         ]),
         styles: { fontSize: 9, font: 'DejaVuSans' },
         headStyles: { fillColor: [66, 66, 66], font: 'DejaVuSans', fontStyle: 'bold' },
@@ -292,6 +292,7 @@ export function ProjectDetail() {
       purchased_quantity: 0,
       used_quantity: 0,
       unit_price: parseFloat(newMaterialPrice) || 0,
+      sale_price: parseFloat(newMaterialPrice) || 0,
       stock_deducted: false,
     })
     setNewMaterialName('')
@@ -366,23 +367,24 @@ export function ProjectDetail() {
         purchased_quantity: item.quantity,
         used_quantity: 0,
         unit_price: item.unit_price,
+        sale_price: item.unit_price,
         stock_deducted: false,
       })
     }
   }
 
-  // Masinis kainų korektavimas — pritaiko ±% visoms objekto medžiagoms
+  // Masinis antkainis — pardavimo kaina = pirkimo kaina × (1 + pct/100)
   const handleAdjustMaterialPrices = async () => {
     const pct = parseFloat(priceAdjustPct)
     if (isNaN(pct) || pct === 0 || !materials?.length) return
-    if (!confirm(`Pakeisti visas ${materials.length} medžiagų kainas ${pct > 0 ? '+' : ''}${pct}%?`)) return
+    if (!confirm(`Pakeisti visas ${materials.length} medžiagų pardavimo kainas ${pct > 0 ? '+' : ''}${pct}% nuo pirkimo?`)) return
     setAdjustingPrices(true)
     try {
       const factor = 1 + pct / 100
       for (const m of materials) {
         const newPrice = Math.round(m.unit_price * factor * 100) / 100
-        if (newPrice !== m.unit_price) {
-          await updateMaterial.mutateAsync({ id: m.id, unit_price: newPrice })
+        if (newPrice !== (m.sale_price ?? m.unit_price)) {
+          await updateMaterial.mutateAsync({ id: m.id, sale_price: newPrice })
         }
       }
       setPriceAdjustPct('')
@@ -484,6 +486,7 @@ export function ProjectDetail() {
           purchased_quantity: m.qty,
           used_quantity: m.qty,
           unit_price: m.price,
+          sale_price: m.price,
           stock_deducted: false,
         })
       }
@@ -561,6 +564,7 @@ export function ProjectDetail() {
           purchased_quantity: m.quantity,
           used_quantity: m.quantity,
           unit_price: m.unit_price,
+          sale_price: m.unit_price,
           stock_deducted: false,
         })
       }
@@ -1055,7 +1059,8 @@ export function ProjectDetail() {
                   <th className="py-2 pr-4">Nupirkta</th>
                   <th className="py-2 pr-4">Sunaudota</th>
                   <th className="py-2 pr-4">Likutis</th>
-                  <th className="py-2 pr-4">€/vnt</th>
+                  <th className="py-2 pr-4">Pirkimo €</th>
+                  <th className="py-2 pr-4">Pardavimo €</th>
                   <th className="py-2 pr-4">Suma</th>
                   <th className="py-2"></th>
                 </tr>
@@ -1063,7 +1068,8 @@ export function ProjectDetail() {
               <tbody className="divide-y divide-gray-100">
                 {materials.map((m) => {
                   const remaining = m.purchased_quantity - m.used_quantity
-                  const total = m.purchased_quantity * m.unit_price
+                  const salePrice = m.sale_price ?? m.unit_price
+                  const total = m.purchased_quantity * salePrice
                   return (
                     <tr key={m.id}>
                       <td className="py-2 pr-4 font-medium text-gray-900">{m.name}</td>
@@ -1120,17 +1126,18 @@ export function ProjectDetail() {
                           {remaining.toFixed(2)} {m.unit}
                         </span>
                       </td>
+                      <td className="py-2 pr-4 text-gray-700">€{m.unit_price.toFixed(2)}</td>
                       <td className="py-2 pr-4">
                         <input
-                          key={`${m.id}-${m.unit_price}`}
+                          key={`${m.id}-${salePrice}`}
                           type="number"
                           min="0"
                           step="0.01"
-                          defaultValue={m.unit_price}
+                          defaultValue={salePrice}
                           onBlur={(e) => {
                             const val = parseFloat(e.target.value) || 0
-                            if (val !== m.unit_price) {
-                              updateMaterial.mutate({ id: m.id, unit_price: val })
+                            if (val !== salePrice) {
+                              updateMaterial.mutate({ id: m.id, sale_price: val })
                             }
                           }}
                           className="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs"
@@ -1151,14 +1158,18 @@ export function ProjectDetail() {
               </tbody>
             </table>
 
-            {/* Medžiagų sumos */}
+            {/* Medžiagų sumos — pirkimo savikaina ir pardavimo suma */}
             {(() => {
-              const totalNet = materials.reduce((s, m) => s + m.purchased_quantity * m.unit_price, 0)
+              const costTotal = materials.reduce((s, m) => s + m.purchased_quantity * m.unit_price, 0)
+              const totalNet = materials.reduce((s, m) => s + m.purchased_quantity * (m.sale_price ?? m.unit_price), 0)
               const totalGross = totalNet * 1.21
               return (
                 <div className="mt-4 pt-3 border-t border-gray-200 flex justify-end gap-6 text-sm">
                   <span className="text-gray-600">
-                    Medžiagų suma be PVM: <strong className="text-gray-900">€{totalNet.toFixed(2)}</strong>
+                    Savikaina: <strong className="text-gray-900">€{costTotal.toFixed(2)}</strong>
+                  </span>
+                  <span className="text-gray-600">
+                    Pardavimo suma be PVM: <strong className="text-gray-900">€{totalNet.toFixed(2)}</strong>
                   </span>
                   <span className="text-gray-600">
                     Su PVM (21%): <strong className="text-gray-900">€{totalGross.toFixed(2)}</strong>

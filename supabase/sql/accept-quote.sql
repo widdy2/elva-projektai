@@ -90,7 +90,7 @@ BEGIN
     END IF;
 
     IF v_is_product THEN
-      INSERT INTO project_materials (project_id, warehouse_item_id, name, unit, planned_quantity, purchased_quantity, used_quantity, unit_price)
+      INSERT INTO project_materials (project_id, warehouse_item_id, name, unit, planned_quantity, purchased_quantity, used_quantity, unit_price, sale_price)
       VALUES (
         v_project_id,
         v_item.warehouse_item_id,
@@ -99,6 +99,7 @@ BEGIN
         COALESCE(v_item.quantity, 1),
         COALESCE(v_item.quantity, 1),
         0,
+        COALESCE(v_item.material_price, 0),
         COALESCE(v_item.material_price, 0)
       );
     ELSE

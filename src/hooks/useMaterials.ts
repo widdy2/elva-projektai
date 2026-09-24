@@ -12,6 +12,7 @@ export interface ProjectMaterial {
   purchased_quantity: number
   used_quantity: number
   unit_price: number
+  sale_price: number | null
   stock_deducted: boolean
   created_at: string
   updated_at: string
