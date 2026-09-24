@@ -1150,6 +1150,22 @@ export function ProjectDetail() {
                 })}
               </tbody>
             </table>
+
+            {/* Medžiagų sumos */}
+            {(() => {
+              const totalNet = materials.reduce((s, m) => s + m.purchased_quantity * m.unit_price, 0)
+              const totalGross = totalNet * 1.21
+              return (
+                <div className="mt-4 pt-3 border-t border-gray-200 flex justify-end gap-6 text-sm">
+                  <span className="text-gray-600">
+                    Medžiagų suma be PVM: <strong className="text-gray-900">€{totalNet.toFixed(2)}</strong>
+                  </span>
+                  <span className="text-gray-600">
+                    Su PVM (21%): <strong className="text-gray-900">€{totalGross.toFixed(2)}</strong>
+                  </span>
+                </div>
+              )
+            })()}
           </div>
         ) : (
           <p className="text-gray-500 text-sm">Medžiagų dar nėra. Pridėkite pirmą medžiagą.</p>
