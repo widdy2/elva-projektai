@@ -88,9 +88,6 @@ export function useCreatePriceItem() {
 
   return useMutation({
     mutationFn: async (item: Omit<PriceItem, 'id' | 'organization_id' | 'created_at' | 'updated_at'>) => {
-      console.log('Creating price item with organization_id:', organizationId)
-      console.log('Item data:', item)
-
       const { data, error } = await supabase
         .from('price_items')
         .insert({ ...item, organization_id: organizationId })
@@ -102,11 +99,9 @@ export function useCreatePriceItem() {
         throw error
       }
 
-      console.log('Created price item:', data)
       return data as PriceItem
     },
     onSuccess: () => {
-      console.log('Price item created successfully, invalidating queries')
       queryClient.invalidateQueries({ queryKey: ['priceItems'] })
     },
   })

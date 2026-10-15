@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useOrganizationDetails, useUpdateOrganization, useUploadOrgLogo } from '../hooks/useOrganizationDetails'
+import { toast } from 'sonner'
 
 export function Settings() {
   const { data: org, isLoading, error } = useOrganizationDetails()
@@ -49,7 +50,7 @@ export function Settings() {
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
-      alert(`Klaida išsaugant: ${(err as Error).message}`)
+      toast.error(`Klaida išsaugant: ${(err as Error).message}`)
     }
   }
 
@@ -59,7 +60,7 @@ export function Settings() {
     try {
       await uploadLogo.mutateAsync(file)
     } catch (err) {
-      alert(`Klaida įkeliant logo: ${(err as Error).message}`)
+      toast.error(`Klaida įkeliant logo: ${(err as Error).message}`)
     }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -68,7 +69,7 @@ export function Settings() {
     try {
       await updateOrg.mutateAsync({ logo_url: null })
     } catch (err) {
-      alert(`Klaida: ${(err as Error).message}`)
+      toast.error(`Klaida: ${(err as Error).message}`)
     }
   }
 

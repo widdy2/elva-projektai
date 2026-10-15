@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { enqueueMutation } from '../lib/offlineQueue'
 
 export interface ProjectPhoto {
   id: string
@@ -81,6 +82,36 @@ export function useUploadProjectPhoto() {
       const compressed = await compressImage(file)
       const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
       const storagePath = `${projectId}/${fileName}`
+      const { data: sessionData } = await supabase.auth.getSession()
+      const userId = sessionData.session?.user?.id || null
+
+      // Offline: suspaustas blob + DB eilutės payload eina į eilę
+      if (!navigator.onLine) {
+        const photo: ProjectPhoto = {
+          id: crypto.randomUUID(),
+          project_id: projectId,
+          storage_path: storagePath,
+          file_name: file.name,
+          uploaded_by: userId,
+          created_at: new Date().toISOString(),
+          url: URL.createObjectURL(compressed),
+        }
+        await enqueueMutation({
+          table: 'project_photos',
+          op: 'storage_upload',
+          payload: {
+            id: photo.id,
+            project_id: projectId,
+            storage_path: storagePath,
+            file_name: file.name,
+            uploaded_by: userId,
+          },
+          bucket: BUCKET,
+          storage_path: storagePath,
+          blob: compressed,
+        })
+        return photo
+      }
 
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
@@ -88,15 +119,13 @@ export function useUploadProjectPhoto() {
 
       if (uploadError) throw uploadError
 
-      const { data: userData } = await supabase.auth.getUser()
-
       const { data, error } = await supabase
         .from('project_photos')
         .insert({
           project_id: projectId,
           storage_path: storagePath,
           file_name: file.name,
-          uploaded_by: userData.user?.id || null,
+          uploaded_by: userId,
         })
         .select()
         .single()
@@ -105,6 +134,13 @@ export function useUploadProjectPhoto() {
       return data as ProjectPhoto
     },
     onSuccess: (data) => {
+      // Offline — sintetinė nuotrauka į cache su lokaliu blob URL
+      if (!navigator.onLine) {
+        queryClient.setQueriesData<ProjectPhoto[]>(
+          { queryKey: ['projectPhotos', data.project_id] },
+          (old) => (old ? [data, ...old] : [data])
+        )
+      }
       queryClient.invalidateQueries({ queryKey: ['projectPhotos', data.project_id] })
     },
   })
@@ -115,6 +151,19 @@ export function useDeleteProjectPhoto() {
 
   return useMutation({
     mutationFn: async (photo: ProjectPhoto) => {
+      // Offline: trynimas eina į eilę (DB eilutė + failas iš Storage sinchronizuojant)
+      if (!navigator.onLine) {
+        await enqueueMutation({
+          table: 'project_photos',
+          op: 'storage_delete',
+          payload: {},
+          match: { id: photo.id },
+          bucket: BUCKET,
+          storage_path: photo.storage_path,
+        })
+        return photo
+      }
+
       const { error: storageError } = await supabase.storage
         .from(BUCKET)
         .remove([photo.storage_path])
@@ -130,6 +179,12 @@ export function useDeleteProjectPhoto() {
       return photo
     },
     onSuccess: (data) => {
+      if (!navigator.onLine) {
+        queryClient.setQueriesData<ProjectPhoto[]>(
+          { queryKey: ['projectPhotos', data.project_id] },
+          (old) => old?.filter(p => p.id !== data.id)
+        )
+      }
       queryClient.invalidateQueries({ queryKey: ['projectPhotos', data.project_id] })
     },
   })

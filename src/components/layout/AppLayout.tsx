@@ -1,16 +1,17 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useOnlineStatus } from '../../hooks/useOnlineStatus'
+import { lt } from '../../i18n/lt'
 
 const menuItems = [
-  { path: '/', label: 'Dashboard' },
-  { path: '/clients', label: 'Klientai' },
-  { path: '/pricelist', label: 'Kainynas' },
-  { path: '/quotes', label: 'Pasiūlymai' },
-  { path: '/projects', label: 'Objektai' },
-  { path: '/invoices', label: 'Sąskaitos' },
-  { path: '/warehouse', label: 'Sandėlis' },
-  { path: '/reports', label: 'Ataskaitos' },
-  { path: '/settings', label: 'Nustatymai' },
+  { path: '/', label: lt.menu.dashboard },
+  { path: '/clients', label: lt.menu.clients },
+  { path: '/pricelist', label: lt.menu.pricelist },
+  { path: '/quotes', label: lt.menu.quotes },
+  { path: '/projects', label: lt.menu.projects },
+  { path: '/invoices', label: lt.menu.invoices },
+  { path: '/warehouse', label: lt.menu.warehouse },
+  { path: '/reports', label: lt.menu.reports },
+  { path: '/settings', label: lt.menu.settings },
 ]
 
 export function AppLayout() {
@@ -22,7 +23,7 @@ export function AppLayout() {
       {/* Šoninis meniu */}
       <aside className="w-64 bg-white shadow-lg">
         <div className="p-6 border-b">
-          <h1 className="text-xl font-bold text-gray-900">Elva projektai</h1>
+          <h1 className="text-xl font-bold text-gray-900">{lt.appTitle}</h1>
         </div>
         <nav className="p-4">
           <ul className="space-y-2">

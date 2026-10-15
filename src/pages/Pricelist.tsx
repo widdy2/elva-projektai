@@ -4,6 +4,7 @@ import { useOrganization } from '../hooks/useOrganization'
 import { ExcelImport } from '../components/ExcelImport'
 import { supabase } from '../lib/supabase'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 export function Pricelist() {
   const { data: priceItems, isLoading, error } = usePriceItems()
@@ -42,7 +43,7 @@ export function Pricelist() {
       })
       setEditingId(null)
     } catch (err) {
-      alert(`Klaida išsaugant: ${(err as Error).message}`)
+      toast.error(`Klaida išsaugant: ${(err as Error).message}`)
     }
   }
 
@@ -51,7 +52,7 @@ export function Pricelist() {
     try {
       await deleteItem.mutateAsync(id)
     } catch (err) {
-      alert(`Klaida trinant: ${(err as Error).message}`)
+      toast.error(`Klaida trinant: ${(err as Error).message}`)
     }
   }
 

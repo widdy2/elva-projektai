@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   vat_rate DECIMAL(5, 2) DEFAULT 21,
   vat_amount DECIMAL(12, 2) DEFAULT 0,
   total DECIMAL(12, 2) DEFAULT 0,
+  reverse_charge BOOLEAN NOT NULL DEFAULT false,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -44,20 +45,40 @@ CREATE TABLE IF NOT EXISTS invoice_sequences (
 CREATE OR REPLACE FUNCTION generate_invoice_number(p_organization_id UUID)
 RETURNS TEXT AS $$
 DECLARE
-  v_year TEXT;
   v_seq INT;
 BEGIN
-  v_year := TO_CHAR(NOW(), 'YYYY');
-
   INSERT INTO invoice_sequences (organization_id, last_number)
   VALUES (p_organization_id, 1)
   ON CONFLICT (organization_id)
   DO UPDATE SET last_number = invoice_sequences.last_number + 1
   RETURNING last_number INTO v_seq;
 
-  RETURN 'SF-' || v_year || '-' || LPAD(v_seq::TEXT, 4, '0');
+  RETURN 'ELVA' || LPAD(v_seq::TEXT, 5, '0');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Automatinis numeris, kai invoice_number nenurodytas (BEFORE INSERT — viena transakcija, be spragų)
+CREATE OR REPLACE FUNCTION set_invoice_number()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.invoice_number IS NULL OR btrim(NEW.invoice_number) = '' THEN
+    NEW.invoice_number := generate_invoice_number(NEW.organization_id);
+    WHILE EXISTS (
+      SELECT 1 FROM invoices
+      WHERE organization_id = NEW.organization_id
+        AND invoice_number = NEW.invoice_number
+    ) LOOP
+      NEW.invoice_number := generate_invoice_number(NEW.organization_id);
+    END LOOP;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_invoices_set_number ON invoices;
+CREATE TRIGGER trg_invoices_set_number
+  BEFORE INSERT ON invoices
+  FOR EACH ROW EXECUTE FUNCTION set_invoice_number();
 
 -- RLS invoices
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;

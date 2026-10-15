@@ -34,6 +34,8 @@ export default defineConfig({
         // Supabase API užklausų necachuojam — jas valdo offline eilė
         navigateFallbackDenylist: [/^\/quote\//],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Pagrindinis bundle viršija numatytąją 2 MiB ribą
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
     }),
   ],

@@ -3,9 +3,12 @@ import Dexie, { Table } from 'dexie'
 export interface PendingMutation {
   id?: number
   table: string
-  op: 'insert' | 'update' | 'delete'
+  op: 'insert' | 'update' | 'delete' | 'storage_upload' | 'storage_delete'
   payload: Record<string, unknown>
   match?: Record<string, unknown>
+  bucket?: string
+  storage_path?: string
+  blob?: Blob
   created_at: number
 }
 

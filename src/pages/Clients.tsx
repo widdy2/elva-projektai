@@ -3,6 +3,7 @@ import { useClients, useCreateClient, useUpdateClient, useDeleteClient, Client }
 import { useProjects } from '../hooks/useProjects'
 import { useNavigate } from 'react-router-dom'
 import { searchJarCompanies, fetchJarDetails, JarCompany } from '../lib/jarLookup'
+import { toast } from 'sonner'
 
 export function Clients() {
   const { data: clients, isLoading, error } = useClients()
@@ -63,7 +64,7 @@ export function Clients() {
       setSelectedClient({ ...selectedClient, name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim() || null, address: editAddress.trim() || null, code: editCode.trim() || null, vat_code: editVatCode.trim() || null })
       setIsEditing(false)
     } catch (err) {
-      alert(`Klaida atnaujinant klientą: ${(err as Error).message}`)
+      toast.error(`Klaida atnaujinant klientą: ${(err as Error).message}`)
     }
   }
 
@@ -121,7 +122,7 @@ export function Clients() {
       setNewVatCode('')
       setJarSuggestions([])
     } catch (err) {
-      alert(`Klaida kuriant klientą: ${(err as Error).message}`)
+      toast.error(`Klaida kuriant klientą: ${(err as Error).message}`)
     }
   }
 
@@ -132,7 +133,7 @@ export function Clients() {
       await deleteClient.mutateAsync(selectedClient.id)
       setSelectedClient(null)
     } catch (err) {
-      alert(`Klaida trinant klientą: ${(err as Error).message}`)
+      toast.error(`Klaida trinant klientą: ${(err as Error).message}`)
     }
   }
 

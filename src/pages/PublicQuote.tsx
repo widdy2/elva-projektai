@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { toast } from 'sonner'
 
 export function PublicQuote() {
   const { token } = useParams<{ token: string }>()
@@ -52,7 +53,7 @@ export function PublicQuote() {
 
     if (rpcError) {
       console.error('Error accepting quote:', rpcError)
-      alert(`Klaida priimant pasiūlymą: ${rpcError.message}`)
+      toast.error(`Klaida priimant pasiūlymą: ${rpcError.message}`)
       return
     }
 
@@ -62,7 +63,7 @@ export function PublicQuote() {
       await supabase.from('quotes').update({ accepted_ip: ip }).eq('id', quote.id)
     } catch { /* IP nebūtinas */ }
 
-    alert('Pasiūlymas priimtas, sukurtas klientas ir objektas!')
+    toast.success('Pasiūlymas priimtas, sukurtas klientas ir objektas!')
     navigate('/')
   }
 
@@ -75,11 +76,11 @@ export function PublicQuote() {
       .eq('id', quote.id)
 
     if (error) {
-      alert('Klaida atnaujinant pasiūlymą')
+      toast.error('Klaida atnaujinant pasiūlymą')
       return
     }
 
-    alert('Pasiūlymas atmestas')
+    toast.success('Pasiūlymas atmestas')
     navigate('/')
   }
 

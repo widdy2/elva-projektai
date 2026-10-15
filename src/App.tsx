@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from 'sonner'
 import { AppLayout } from './components/layout/AppLayout'
 import { Dashboard } from './pages/Dashboard'
 import { Clients } from './pages/Clients'
@@ -41,6 +42,7 @@ function App() {
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
+        <Toaster position="top-right" richColors />
       </BrowserRouter>
     </QueryClientProvider>
   )

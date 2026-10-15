@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjects, useCreateProject, useUpdateProject, useDeleteProject, Project } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
+import { toast } from 'sonner'
 
 const statusLabels: Record<string, string> = {
   planning: 'Planuojamas',
@@ -92,7 +93,7 @@ export function Projects() {
       })
       setEditingProject(null)
     } catch (err) {
-      alert(`Klaida išsaugant: ${(err as Error).message}`)
+      toast.error(`Klaida išsaugant: ${(err as Error).message}`)
     }
   }
 
@@ -101,7 +102,7 @@ export function Projects() {
     try {
       await deleteProject.mutateAsync(project.id)
     } catch (err) {
-      alert(`Klaida trinant: ${(err as Error).message}`)
+      toast.error(`Klaida trinant: ${(err as Error).message}`)
     }
   }
 

@@ -44,10 +44,6 @@ export function PdfImport({ onImport }: PdfImportProps) {
     try {
       const fullText = await extractPdfText(file)
 
-      console.log('=== PDF extracted text ===')
-      console.log(fullText)
-      console.log('=== End of PDF text ===')
-
       if (fullText.trim().length < 10) {
         setError('PDF faile nėra teksto sluoksnio — tai nuskanuotas dokumentas. Reikalingas tekstinis PDF.')
         return

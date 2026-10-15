@@ -10,12 +10,11 @@ import { useProjectActs, useGenerateAct, useUpdateActStatus } from '../hooks/use
 import { useCreateInvoice } from '../hooks/useInvoices'
 import { useProfiles } from '../hooks/useProfiles'
 import { useOrganizationDetails } from '../hooks/useOrganizationDetails'
-import { addOrgHeader } from '../lib/pdfHeader'
+import { downloadActPdf } from '../lib/pdfAct'
 import { WorkActPdfImport } from '../components/WorkActPdfImport'
 import { PdfImport } from '../components/PdfImport'
 import { PdfLineItem } from '../lib/pdfParse'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import { toast } from 'sonner'
 
 const statusLabels: Record<string, string> = {
   planning: 'Planuojamas',
@@ -126,6 +125,7 @@ export function ProjectDetail() {
   const generateAct = useGenerateAct()
   const updateActStatus = useUpdateActStatus()
   const createInvoice = useCreateInvoice()
+  const [reverseCharge, setReverseCharge] = useState(false)
 
   const handleCreateInvoiceFromAct = async () => {
     if (!project || !id) return
@@ -156,13 +156,13 @@ export function ProjectDetail() {
     ]
 
     if (items.length === 0) {
-      alert('Nėra atliktų darbų ar sunaudotų medžiagų sąskaitai')
+      toast.warning('Nėra atliktų darbų ar sunaudotų medžiagų sąskaitai')
       return
     }
 
     const subtotal = items.reduce((sum, i) => sum + i.total, 0)
-    const vatRate = 21
-    const vatAmount = subtotal * vatRate / 100
+    const vatRate = reverseCharge ? 0 : 21
+    const vatAmount = reverseCharge ? 0 : subtotal * vatRate / 100
 
     try {
       await createInvoice.mutateAsync({
@@ -176,6 +176,7 @@ export function ProjectDetail() {
           vat_rate: vatRate,
           vat_amount: vatAmount,
           total: subtotal + vatAmount,
+          reverse_charge: reverseCharge,
           notes: null,
         },
         items,
@@ -205,9 +206,9 @@ export function ProjectDetail() {
         }
       }
 
-      alert('Sąskaita sukurta')
+      toast.success('Sąskaita sukurta')
     } catch (err) {
-      alert(`Klaida kuriant sąskaitą: ${(err as Error).message}`)
+      toast.error(`Klaida kuriant sąskaitą: ${(err as Error).message}`)
     }
   }
 
@@ -216,89 +217,13 @@ export function ProjectDetail() {
     try {
       await generateAct.mutateAsync({ projectId: id })
     } catch (err) {
-      alert(`Klaida generuojant aktą: ${(err as Error).message}`)
+      toast.error(`Klaida generuojant aktą: ${(err as Error).message}`)
     }
   }
 
   const handleDownloadActPdf = async (actNumber: string) => {
     if (!project || !works) return
-
-    const doc = new jsPDF()
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const startY = await addOrgHeader(doc, org)
-
-    doc.setFontSize(18)
-    doc.setFont('DejaVuSans', 'bold')
-    doc.text('ATLIKTŲ DARBŲ AKTAS', pageWidth / 2, startY + 6, { align: 'center' })
-    doc.setFont('DejaVuSans', 'normal')
-    doc.setFontSize(12)
-    doc.text(actNumber, pageWidth / 2, startY + 14, { align: 'center' })
-
-    doc.setFontSize(10)
-    doc.text(`Objektas: ${project.name || ''}`, 14, startY + 26)
-    doc.text(`Adresas: ${project.address || ''}`, 14, startY + 32)
-    doc.text(`Klientas: ${project.clients?.name || ''}`, 14, startY + 38)
-    doc.text(`Data: ${new Date().toLocaleDateString('lt-LT')}`, 14, startY + 44)
-
-    const completedWorks = works.filter(w => w.status === 'completed')
-    const worksTotal = completedWorks.reduce((s, w) => s + (w.quantity || 0) * (w.work_price || 0), 0)
-    autoTable(doc, {
-      startY: startY + 51,
-      head: [['Darbas', 'Kiekis', 'Mato vnt.', '€/vnt', 'Suma €']],
-      body: completedWorks.map(w => [
-        w.name,
-        (w.quantity || 0).toFixed(2),
-        w.unit || 'vnt',
-        (w.work_price || 0).toFixed(2),
-        ((w.quantity || 0) * (w.work_price || 0)).toFixed(2),
-      ]),
-      styles: { fontSize: 9, font: 'DejaVuSans' },
-      headStyles: { fillColor: [66, 66, 66], font: 'DejaVuSans', fontStyle: 'bold' },
-    })
-
-    const usedMats = (materials || []).filter(m => m.used_quantity > 0 || m.warehouse_item_id)
-    const materialsTotal = usedMats.reduce(
-      (s, m) => s + (m.used_quantity > 0 ? m.used_quantity : m.purchased_quantity) * (m.sale_price ?? m.unit_price),
-      0
-    )
-    const materialsY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
-    if (usedMats.length > 0) {
-      doc.setFontSize(12)
-      doc.text('Sunaudotos medžiagos:', 14, materialsY)
-      autoTable(doc, {
-        startY: materialsY + 5,
-        head: [['Medžiaga', 'Kiekis', 'Mato vnt.', '€/vnt', 'Suma €']],
-        body: usedMats.map(m => [
-          m.name,
-          (m.used_quantity > 0 ? m.used_quantity : m.purchased_quantity).toFixed(2),
-          m.unit,
-          (m.sale_price ?? m.unit_price).toFixed(2),
-          ((m.used_quantity > 0 ? m.used_quantity : m.purchased_quantity) * (m.sale_price ?? m.unit_price)).toFixed(2),
-        ]),
-        styles: { fontSize: 9, font: 'DejaVuSans' },
-        headStyles: { fillColor: [66, 66, 66], font: 'DejaVuSans', fontStyle: 'bold' },
-      })
-    }
-
-    // Galutinė suma akte
-    const totalNet = worksTotal + materialsTotal
-    const totalGross = totalNet * 1.21
-    const totalsY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
-    doc.setFontSize(10)
-    doc.setFont('DejaVuSans', 'bold')
-    doc.text(`Darbai: ${worksTotal.toFixed(2)} €`, pageWidth - 14, totalsY, { align: 'right' })
-    doc.text(`Medžiagos: ${materialsTotal.toFixed(2)} €`, pageWidth - 14, totalsY + 6, { align: 'right' })
-    doc.text(`Suma be PVM: ${totalNet.toFixed(2)} €`, pageWidth - 14, totalsY + 12, { align: 'right' })
-    doc.text(`PVM (21%): ${(totalNet * 0.21).toFixed(2)} €`, pageWidth - 14, totalsY + 18, { align: 'right' })
-    doc.text(`IŠ VISO su PVM: ${totalGross.toFixed(2)} €`, pageWidth - 14, totalsY + 24, { align: 'right' })
-    doc.setFont('DejaVuSans', 'normal')
-
-    const finalY = totalsY + 34
-    doc.setFontSize(10)
-    doc.text('Vadovas: _______________________', 14, finalY)
-    doc.text('Klientas: _______________________', pageWidth - 80, finalY)
-
-    doc.save(`${actNumber}.pdf`)
+    await downloadActPdf(actNumber, project, works, materials, org)
   }
 
   const handleAddMaterial = async (e: React.FormEvent) => {
@@ -332,7 +257,7 @@ export function ProjectDetail() {
         await uploadPhoto.mutateAsync({ projectId: id, file })
       } catch (err) {
         console.error('Photo upload failed:', err)
-        alert(`Klaida įkeliant nuotrauką: ${(err as Error).message}`)
+        toast.error(`Klaida įkeliant nuotrauką: ${(err as Error).message}`)
       }
     }
     e.target.value = ''
@@ -411,7 +336,7 @@ export function ProjectDetail() {
       }
       setPriceAdjustPct('')
     } catch (err) {
-      alert(`Klaida keičiant kainas: ${(err as Error).message}`)
+      toast.error(`Klaida keičiant kainas: ${(err as Error).message}`)
     } finally {
       setAdjustingPrices(false)
     }
@@ -441,7 +366,7 @@ export function ProjectDetail() {
     try {
       await startTime.mutateAsync({ projectId: id })
     } catch (err) {
-      alert(`Klaida paleidžiant laikmatį: ${(err as Error).message}`)
+      toast.error(`Klaida paleidžiant laikmatį: ${(err as Error).message}`)
     }
   }
 
@@ -463,7 +388,7 @@ export function ProjectDetail() {
       setReportNewMatPrice('')
       setShowReportModal(true)
     } catch (err) {
-      alert(`Klaida stabdant laikmatį: ${(err as Error).message}`)
+      toast.error(`Klaida stabdant laikmatį: ${(err as Error).message}`)
     }
   }
 
@@ -516,7 +441,7 @@ export function ProjectDetail() {
       await generateAct.mutateAsync({ projectId: id })
       setShowReportModal(false)
     } catch (err) {
-      alert(`Klaida išsaugant ataskaitą: ${(err as Error).message}`)
+      toast.error(`Klaida išsaugant ataskaitą: ${(err as Error).message}`)
     } finally {
       setSavingReport(false)
     }
@@ -552,7 +477,7 @@ export function ProjectDetail() {
       setAiWorks(data.works || [])
       setAiMaterials(data.materials || [])
     } catch (err) {
-      alert(`AI klaida: ${(err as Error).message}`)
+      toast.error(`AI klaida: ${(err as Error).message}`)
     } finally {
       setAiLoading(false)
     }
@@ -595,7 +520,7 @@ export function ProjectDetail() {
       setAiText('')
       setShowAiAgent(false)
     } catch (err) {
-      alert(`Klaida pridedant: ${(err as Error).message}`)
+      toast.error(`Klaida pridedant: ${(err as Error).message}`)
     } finally {
       setAiAdding(false)
     }
@@ -1255,13 +1180,23 @@ export function ProjectDetail() {
           <h3 className="text-lg font-semibold text-gray-900">
             Aktai ({acts?.length || 0})
           </h3>
-          <button
-            onClick={handleGenerateAct}
-            disabled={generateAct.isPending}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm disabled:opacity-50"
-          >
-            {generateAct.isPending ? 'Generuojama...' : '+ Generuoti aktą'}
-          </button>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={reverseCharge}
+                onChange={(e) => setReverseCharge(e.target.checked)}
+              />
+              Sąskaita su atvirkštiniu PVM (96 str.)
+            </label>
+            <button
+              onClick={handleGenerateAct}
+              disabled={generateAct.isPending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm disabled:opacity-50"
+            >
+              {generateAct.isPending ? 'Generuojama...' : '+ Generuoti aktą'}
+            </button>
+          </div>
         </div>
 
         {acts && acts.length > 0 ? (
