@@ -8,7 +8,8 @@ import { amountToWords } from './numberToWords'
 /**
  * Sugeneruoja ir atsisiunčia sąskaitos PDF.
  * Atvirkštinei sąskaitai (reverse_charge): antraštė be "PVM",
- * PVM 0% ir privaloma pastraipa "Atvirkštinis apmokestinimas pagal 96 str."
+ * PVM eilutė rodoma su 21% tarifu (jį deklaruoja pirkėjas),
+ * apmokama suma — be PVM, ir privaloma pastraipa "Atvirkštinis apmokestinimas pagal 96 str."
  */
 export async function downloadInvoicePdf(
   invoice: Invoice,
@@ -123,8 +124,11 @@ export async function downloadInvoicePdf(
     finalY = 20
   }
   doc.setFontSize(10)
+  // Atvirkštinei sąskaitai PVM nurodomas 21% tarifu; senesnėse DB eilutėse vat_rate=0
+  const vatRate = invoice.reverse_charge && invoice.vat_rate === 0 ? 21 : invoice.vat_rate
+  const vatAmount = invoice.reverse_charge ? invoice.subtotal * vatRate / 100 : invoice.vat_amount
   doc.text(`Suma ${invoice.subtotal.toFixed(2)}`, pageWidth - 14, finalY, { align: 'right' })
-  doc.text(`PVM ${invoice.vat_rate}% ${invoice.vat_amount.toFixed(2)}`, pageWidth - 14, finalY + 5, { align: 'right' })
+  doc.text(`PVM ${vatRate}% ${vatAmount.toFixed(2)}`, pageWidth - 14, finalY + 5, { align: 'right' })
   doc.setFont('DejaVuSans', 'bold')
   doc.setFontSize(11)
   doc.text(`Suma apmokėjimui ${invoice.total.toFixed(2)}`, pageWidth - 14, finalY + 12, { align: 'right' })

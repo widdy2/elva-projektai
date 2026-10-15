@@ -161,8 +161,8 @@ export function ProjectDetail() {
     }
 
     const subtotal = items.reduce((sum, i) => sum + i.total, 0)
-    const vatRate = reverseCharge ? 0 : 21
-    const vatAmount = reverseCharge ? 0 : subtotal * vatRate / 100
+    const vatRate = 21
+    const vatAmount = subtotal * vatRate / 100
 
     try {
       await createInvoice.mutateAsync({
@@ -175,7 +175,7 @@ export function ProjectDetail() {
           subtotal,
           vat_rate: vatRate,
           vat_amount: vatAmount,
-          total: subtotal + vatAmount,
+          total: reverseCharge ? subtotal : subtotal + vatAmount,
           reverse_charge: reverseCharge,
           notes: null,
         },

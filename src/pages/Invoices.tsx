@@ -82,9 +82,10 @@ export function Invoices() {
   }
 
   const subtotal = items.reduce((sum, i) => sum + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0)
-  const vatRate = reverseCharge ? 0 : 21
-  const vatAmount = reverseCharge ? 0 : subtotal * vatRate / 100
-  const total = subtotal + vatAmount
+  const vatRate = 21
+  const vatAmount = subtotal * vatRate / 100
+  // Atvirkštinis apmokestinimas (96 str.): PVM 21% nurodomas, bet galutinė suma — be PVM
+  const total = reverseCharge ? subtotal : subtotal + vatAmount
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -295,8 +296,8 @@ export function Invoices() {
           <div className="flex justify-between items-center border-t pt-4">
             <div className="text-sm text-gray-600">
               <span>Tarpinė suma: <strong>€{subtotal.toFixed(2)}</strong></span>
-              <span className="ml-4">{reverseCharge ? 'PVM (atvirkštinis, 96 str.)' : `PVM ${vatRate}%`}: <strong>€{vatAmount.toFixed(2)}</strong></span>
-              <span className="ml-4">Iš viso: <strong className="text-lg">€{total.toFixed(2)}</strong></span>
+              <span className="ml-4">{reverseCharge ? `PVM ${vatRate}% (atvirkštinis, 96 str.)` : `PVM ${vatRate}%`}: <strong>€{vatAmount.toFixed(2)}</strong></span>
+              <span className="ml-4">{reverseCharge ? 'Iš viso (be PVM):' : 'Iš viso:'} <strong className="text-lg">€{total.toFixed(2)}</strong></span>
             </div>
             <button
               type="submit"
@@ -446,12 +447,14 @@ function InvoiceRow({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">
-                      {invoice.reverse_charge ? 'PVM (atvirkštinis, 96 str.):' : `PVM ${invoice.vat_rate}%:`}
+                      {invoice.reverse_charge ? `PVM ${invoice.vat_rate || 21}% (atvirkštinis, 96 str.):` : `PVM ${invoice.vat_rate}%:`}
                     </span>
-                    <span className="font-medium">€{invoice.vat_amount.toFixed(2)}</span>
+                    <span className="font-medium">
+                      €{(invoice.reverse_charge ? invoice.subtotal * (invoice.vat_rate || 21) / 100 : invoice.vat_amount).toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between pt-1 border-t border-gray-200">
-                    <span className="text-gray-900 font-semibold">{invoice.reverse_charge ? 'Viso:' : 'Viso su PVM:'}</span>
+                    <span className="text-gray-900 font-semibold">{invoice.reverse_charge ? 'Viso be PVM:' : 'Viso su PVM:'}</span>
                     <span className="font-semibold">€{invoice.total.toFixed(2)}</span>
                   </div>
                 </div>
